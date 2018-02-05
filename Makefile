@@ -7,4 +7,3 @@ main.native: *.ml*
 
 mini-c:
 	ln -s main.native $@
-
