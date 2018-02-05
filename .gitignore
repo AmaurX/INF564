@@ -1,2 +1,6 @@
 .vscode
 _build/
+
+# Executables
+main.native
+mini-c

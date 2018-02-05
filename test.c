@@ -22,7 +22,6 @@ int truc()
   int c;
   {
     int a;
-    int a;
   }
   return 1 + 5;
 }
