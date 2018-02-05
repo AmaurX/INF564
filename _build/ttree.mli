@@ -4,7 +4,7 @@
 type ident = string
 
 type typ =
-  | Tint                  (* int *)
+  | Tint                  (* int *) (* fait *)
   | Tstructp of structure (* struct S * *)
   | Tvoidstar             (* void * *)
   | Ttypenull             (* le type donné à la constante 0 *)
@@ -33,13 +33,13 @@ type expr = {
 }
 
 and expr_node =
-  | Econst of int32
+  | Econst of int32 (* fait *)
   | Eaccess_local of ident
   | Eaccess_field of expr * field
   | Eassign_local of ident * expr
   | Eassign_field of expr * field * expr
-  | Eunop of unop * expr
-  | Ebinop of binop * expr * expr
+  | Eunop of unop * expr (* fait *)
+  | Ebinop of binop * expr * expr (* fait *)
   | Ecall of ident * expr list
   | Esizeof of structure
 

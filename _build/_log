@@ -33,16 +33,8 @@
 /usr/bin/ocamldep.opt -modules typing.ml > typing.ml.depends
 # Target: typing.cmx, tags: { compile, extension:cmx, extension:ml, file:typing.cmx, file:typing.ml, implem, native, ocaml, quiet }
 /usr/bin/ocamlopt.opt -c -o typing.cmx typing.ml
-+ /usr/bin/ocamlopt.opt -c -o typing.cmx typing.ml
-File "typing.ml", line 67, characters 32-34:
-Warning 40: id was selected from type Ptree.ident.
-It is not visible in the current scope, and will not 
-be selected if the type becomes unknown.
 # Target: main.cmx, tags: { compile, extension:cmx, extension:ml, file:main.cmx, file:main.ml, implem, native, ocaml, quiet }
-/usr/bin/ocamlopt.opt -c -o main.cmx main.ml
-+ /usr/bin/ocamlopt.opt -c -o main.cmx main.ml
-File "main.ml", line 45, characters 8-9:
-Warning 26: unused variable p.
+/usr/bin/ocamlopt.opt -c -o main.cmx main.ml # cached
 # Target: main.native, tags: { dont_link_with, extension:native, file:main.native, link, native, ocaml, program, quiet }
 /usr/bin/ocamlopt.opt parser.cmx lexer.cmx typing.cmx main.cmx -o main.native
 # Compilation successful.
