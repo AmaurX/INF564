@@ -89,7 +89,7 @@ let varlist_to_hashtable varlist table=
 (* print_hashtable table;  *)
 
 
-let rec type_lvalue = function
+let rec type_rvalue = function
   | Ptree.Lident varname -> begin
       let name = varname.Ptree.id in
       (* check existence *)
@@ -118,7 +118,46 @@ let rec type_lvalue = function
       | _ -> raise (Error ("Cannot access field '" ^ field_name ^ "' of a non-structure"))
       (* check field existence *)
     end
+  
+and type_lvalue ass_expr = function
+  | Ptree.Lident varname -> begin
+      let name = varname.Ptree.id in
+      (* check existence *)
+      if not (Hashtbl.mem env_table name)
+      then raise (Error ("Var '" ^ name ^ "' unbound in scope"));
+      (* return type *)
+      let var_type = Hashtbl.find env_table name in
+      if not (var_type = ass_expr.expr_typ)
+      then raise (Error (sprintf "Cannot assign a '%s' to var '%s' of type '%s'" (string_of_type ass_expr.expr_typ) name (string_of_type var_type))); 
+      {
+        expr_node = Eassign_local (name,ass_expr);
+        expr_typ = var_type;
+      }
+    end
+  | Ptree.Larrow (myexpr, field_ident) -> begin
+      let field_name = field_ident.Ptree.id in
+      let typed_expr = type_expr myexpr in match typed_expr.expr_typ with
+      | Tstructp structure -> begin
+          (* check is structure has a field of name field_name *)
+          try 
+            let field = Hashtbl.find structure.str_fields field_name in
+            if not(field.field_typ = ass_expr.expr_typ) 
+            then raise (Error (sprintf "Cannot assign a '%s' to field '%s' of struct '%s'" (string_of_type ass_expr.expr_typ) field_name (string_of_type typed_expr.expr_typ))); 
+            {
+              expr_node = Eassign_field (typed_expr, field, ass_expr);
+              expr_typ = field.field_typ;
+            }
+          with Not_found -> raise (Error ("Field '" ^ field_name ^ "' does not exist in :" ^ string_of_type typed_expr.expr_typ));
+        end
+      | _ -> raise (Error ("Cannot access field '" ^ field_name ^ "' of a non-structure"))
+      (* check field existence *)
+    end
 
+    (* let tpd_lvalue = type_lvalue myrvalue in 
+    let tpd_expr = type_expr myexpr in
+    if not (tpd_expr.expr_typ = tpd_lvalue.expr_typ)
+    then raise (Error (sprintf "Cannot assign variable of type '%s' to type '%s'" (string_of_type tpd_expr.expr_typ) (string_of_type tpd_lvalue.expr_typ)))
+    match  *)
 
 (** Checks  the type validity of an expression 
     @param myexpr an expression
@@ -169,8 +208,9 @@ and type_expr (myexpr: Ptree.expr) =
         expr_typ = fun_decl.fun_typ;
       }
     end
-  | Ptree.Eright mylvalue -> type_lvalue mylvalue
-  | _ -> raise (Error "Expr to be implemented")
+  | Ptree.Eright mylvalue -> type_rvalue mylvalue
+  | Ptree.Eassign (mylvalue, myexpr) -> type_lvalue (type_expr myexpr) mylvalue
+      | _ -> raise (Error "Expr to be implemented")
 
 ;;
 (** Checks the correct typing of a statement
