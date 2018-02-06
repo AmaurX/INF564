@@ -185,6 +185,12 @@ let rec type_stmt mystmt return_type =
     else Sreturn (type_expr myexpr)
   | Ptree.Sblock block -> Sblock (type_block block return_type [])
   | Ptree.Sexpr myexpr -> Sexpr (type_expr myexpr)
+  | Ptree.Sif (cond_expr, if_s, else_s) -> begin
+      let tpd_expr = type_expr cond_expr in 
+      let tpd_if_s = type_stmt if_s return_type in
+      let tpd_else_s = type_stmt else_s return_type in
+      Sif (tpd_expr,tpd_if_s,tpd_else_s)
+    end
   | _ -> raise (Error "Stmt to be implemented")
 
 
@@ -217,7 +223,7 @@ and type_block ((varlist, stmtlist): Ptree.block) (return_type:Ttree.typ) (fun_f
   List.iter add_variable typed_formals;
   List.iter add_variable typed_varlist;
   (* print_string "variables:";
-  print_hashtable env_table; *)
+     print_hashtable env_table; *)
   (* print_string "funs:";
      print_hashtable fun_table; *)
 
