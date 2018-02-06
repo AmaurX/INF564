@@ -15,11 +15,15 @@ let string_of_type = function
   | Ttypenull  -> "typenull"
 
 
+(** Prints all keys of a (string, 'a) Hashtable 
+@param table a (string, 'a) Hashtable
+*)
 let print_hashtable table = 
-  print_string ("\ntqble\n");
+  print_string ("\ntable\n");
   let print_couple a b = print_string (a ^ "\n") in
   Hashtbl.iter print_couple table; ()
 
+(** Converts Ptree.typ to Ttree.typ *)
 let handle_type = function
 | Ptree.Tint -> Tint
 | Ptree.Tstructp id -> try let tstruct = (Hashtbl.find struct_table id.Ptree.id) in Tstructp tstruct with 
@@ -29,6 +33,7 @@ let handle_type = function
 let type_var (mytype , identity) = (handle_type mytype , identity.Ptree.id)
 
 
+(** Sequentially types all the vars of the list *)
 let rec type_varlist = function
  | var::endlist -> type_var var ::type_varlist endlist
  | [] -> []
@@ -52,6 +57,9 @@ let varlist_to_hashtable varlist table=
     in inner_filler table typedlist; ()
     (* print_hashtable table;  *)
 
+(** Checks  the type validity of an expression 
+@param myexpr an expression
+*)
 let rec type_expr (myexpr: Ptree.expr) = 
   match myexpr.Ptree.expr_node with 
   | Ptree.Econst i -> {expr_node = Econst i;

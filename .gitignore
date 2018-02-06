@@ -4,3 +4,6 @@ _build/
 # Executables
 main.native
 mini-c
+
+# documentation
+main.docdir

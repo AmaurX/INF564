@@ -1,5 +1,4 @@
-
-(* Fichier principal du compilateur mini-c *)
+(** Fichier principal du compilateur mini-c *)
 
 open Format
 open Lexing
