@@ -10,6 +10,8 @@ open Ttree
 (* utiliser cette exception pour signaler une erreur de typage *)
 exception Error of string
 
+(**************** INITIALISATION ***************)
+
 (* Stores type of defined structures *)
 let struct_table = Hashtbl.create 16
 
@@ -27,7 +29,7 @@ let init_fun_table fun_table =
          fun_body = ([],[]);
       };
       {  fun_typ = Tvoidstar;
-         fun_name = "setbrk";
+         fun_name = "sbrk";
          fun_formals = [(Tint, "n")];
          fun_body = ([],[]);
       }
@@ -39,12 +41,20 @@ let fun_table = (Hashtbl.create 16 : (string, decl_fun) Hashtbl.t)
 
 let () = init_fun_table fun_table
 
+(**************** UTILS ***************)
+
 let string_of_type = function
   | Tint       -> "int"
   | Tstructp x -> "struct " ^ x.str_name ^ " *"
   | Tvoidstar  -> "void*"
   | Ttypenull  -> "typenull"
 
+let string_of_stmt stlt = match stlt.Ptree.stmt_node with
+  | Ptree.Sblock _-> "S - block"
+  | Ptree.Sif _ -> "S - if"
+  | Ptree.Sexpr _ -> "S - expr"
+  | Ptree.Sreturn _ -> "S - return"
+  | _ -> "S - other"
 
 (** Prints all keys of a Hashtable 
     @param table a (string, 'a) Hashtable
@@ -53,6 +63,25 @@ let print_hashtable table =
   print_string ("\ntable\n");
   let print_couple a b = print_string ("| " ^a ^ "\n") in
   Hashtbl.iter print_couple table; ()
+
+(** type comparison function
+    avoids infinite recursion on struct comparisons by just comparing names
+    @param typ1 first type
+    @param typ2 snd type
+*)
+let are_equal_types (typ1:typ) (typ2:typ) = match typ1, typ2 with
+  | Tstructp s1, Tstructp s2 -> s1.str_name = s2.str_name
+  | t1, t2-> t1 = t2
+
+(** Determines if the type is castable to bool
+    Used to check conditions
+    @param typ the requested type
+*)
+let is_bool_type = function
+  | Ttypenull -> false
+  | _ -> true
+
+(**************** TYPE-CHECKING ***************)
 
 (** Converts Ptree.typ to Ttree.typ *)
 let handle_type = function
@@ -88,7 +117,10 @@ let varlist_to_hashtable varlist table=
   in inner_filler table typedlist; ()
 (* print_hashtable table;  *)
 
-
+(** Rvalue typer
+    Rvalues are accesses to variables
+    @param rvalue the structure field or variable to access
+*)
 let rec type_rvalue = function
   | Ptree.Lident varname -> begin
       let name = varname.Ptree.id in
@@ -118,7 +150,14 @@ let rec type_rvalue = function
       | _ -> raise (Error ("Cannot access field '" ^ field_name ^ "' of a non-structure"))
       (* check field existence *)
     end
-  
+
+(** Typer of lvalue expressions
+    Lvalues are left of an assignment
+    NOTE : structural comparisons on struct types here are causing a 'ot of memory' error
+
+    @param ass_expr the expression that will be assigned to the lvalue
+    @param lvalue the lvalue
+*)
 and type_lvalue ass_expr = function
   | Ptree.Lident varname -> begin
       let name = varname.Ptree.id in
@@ -127,7 +166,7 @@ and type_lvalue ass_expr = function
       then raise (Error ("Var '" ^ name ^ "' unbound in scope"));
       (* return type *)
       let var_type = Hashtbl.find env_table name in
-      if not (var_type = ass_expr.expr_typ)
+      if not (are_equal_types var_type ass_expr.expr_typ)
       then raise (Error (sprintf "Cannot assign a '%s' to var '%s' of type '%s'" (string_of_type ass_expr.expr_typ) name (string_of_type var_type))); 
       {
         expr_node = Eassign_local (name,ass_expr);
@@ -141,7 +180,7 @@ and type_lvalue ass_expr = function
           (* check is structure has a field of name field_name *)
           try 
             let field = Hashtbl.find structure.str_fields field_name in
-            if not(field.field_typ = ass_expr.expr_typ) 
+            if not(are_equal_types field.field_typ ass_expr.expr_typ) 
             then raise (Error (sprintf "Cannot assign a '%s' to field '%s' of struct '%s'" (string_of_type ass_expr.expr_typ) field_name (string_of_type typed_expr.expr_typ))); 
             {
               expr_node = Eassign_field (typed_expr, field, ass_expr);
@@ -153,11 +192,11 @@ and type_lvalue ass_expr = function
       (* check field existence *)
     end
 
-    (* let tpd_lvalue = type_lvalue myrvalue in 
-    let tpd_expr = type_expr myexpr in
-    if not (tpd_expr.expr_typ = tpd_lvalue.expr_typ)
-    then raise (Error (sprintf "Cannot assign variable of type '%s' to type '%s'" (string_of_type tpd_expr.expr_typ) (string_of_type tpd_lvalue.expr_typ)))
-    match  *)
+(* let tpd_lvalue = type_lvalue myrvalue in 
+   let tpd_expr = type_expr myexpr in
+   if not (tpd_expr.expr_typ = tpd_lvalue.expr_typ)
+   then raise (Error (sprintf "Cannot assign variable of type '%s' to type '%s'" (string_of_type tpd_expr.expr_typ) (string_of_type tpd_lvalue.expr_typ)))
+   match  *)
 
 (** Checks  the type validity of an expression 
     @param myexpr an expression
@@ -196,7 +235,7 @@ and type_expr (myexpr: Ptree.expr) =
                let (decl_typ, decl_name) = decl_formal in
                let typed_expr = type_expr call_expr in
                let expr_typ = typed_expr.expr_typ in
-               if not (decl_typ = expr_typ)
+               if not (are_equal_types decl_typ expr_typ)
                then raise (Error (sprintf "incompatible types for argument '%s' of '%s' : expected '%s', got '%s'" 
                                     decl_name fun_name (string_of_type decl_typ) (string_of_type expr_typ)));
                typed_expr
@@ -210,7 +249,7 @@ and type_expr (myexpr: Ptree.expr) =
     end
   | Ptree.Eright mylvalue -> type_rvalue mylvalue
   | Ptree.Eassign (mylvalue, myexpr) -> type_lvalue (type_expr myexpr) mylvalue
-      | _ -> raise (Error "Expr to be implemented")
+  | _ -> raise (Error "Expr to be implemented")
 
 ;;
 (** Checks the correct typing of a statement
@@ -218,18 +257,28 @@ and type_expr (myexpr: Ptree.expr) =
     @param return_type the only allowed type for a return stmt
 *)
 let rec type_stmt mystmt return_type = 
+  (* print_string ((string_of_stmt mystmt) ^"\n"); *)
   match mystmt.Ptree.stmt_node with 
   | Ptree.Sreturn myexpr -> let mytype = (type_expr myexpr).expr_typ in
-    if not (mytype = return_type )
+    if not (are_equal_types mytype return_type )
     then raise (Error ("Invalid return type : '" ^ (string_of_type mytype) ^ "' { expected : '" ^ (string_of_type return_type) ^ "' }"))
     else Sreturn (type_expr myexpr)
   | Ptree.Sblock block -> Sblock (type_block block return_type [])
   | Ptree.Sexpr myexpr -> Sexpr (type_expr myexpr)
   | Ptree.Sif (cond_expr, if_s, else_s) -> begin
       let tpd_expr = type_expr cond_expr in 
+      if not (is_bool_type tpd_expr.expr_typ)
+      then raise (Error (sprintf "The type '%s' cannot be used to define a condition" (string_of_type tpd_expr.expr_typ )));
       let tpd_if_s = type_stmt if_s return_type in
       let tpd_else_s = type_stmt else_s return_type in
       Sif (tpd_expr,tpd_if_s,tpd_else_s)
+    end
+  | Ptree.Swhile (cond_expr, while_s) -> begin
+      let tpd_expr = type_expr cond_expr in 
+      if not (is_bool_type tpd_expr.expr_typ)
+      then raise (Error (sprintf "The type '%s' cannot be used to define a condition" (string_of_type tpd_expr.expr_typ )));
+      let tpd_st = type_stmt while_s return_type in
+      Swhile (tpd_expr, tpd_st)
     end
   | Ptree.Sskip -> Sskip
   | _ -> raise (Error "Stmt to be implemented")

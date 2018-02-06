@@ -4,10 +4,10 @@
 // // la commande 'make' recompile mini-c (si nécessaire)
 // // et le lance sur ce fichier
 
-// struct coucou
-// {
-//   struct coucou *bidule;
-// };
+struct coucou
+{
+  struct coucou *bidule;
+};
 
 // struct coucou2
 // {
@@ -46,6 +46,9 @@
 
 int main() {
   int x;
-  if (1) { int x; }
+  struct coucou * a;
+  struct coucou * b;
+  b = a->bidule->bidule;
+  if (x) { int x; }
 }
 
