@@ -24,7 +24,7 @@ doc: *.ml* cleandoc
 
 tests: mini-c
 	ln -sf mini-c tests/mini-c
-	cd tests && ./run -2 mini-c
+	cd tests && ./run -v2 ../mini-c
 
 cleanmini:
 	$(RM) tests/mini-c

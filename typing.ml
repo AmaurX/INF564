@@ -115,7 +115,7 @@ let rec type_lvalue = function
             }
           with Not_found -> raise (Error ("Field '" ^ field_name ^ "' does not exist in :" ^ string_of_type typed_expr.expr_typ));
         end
-      | _ -> raise (Error ("Cannot access field " ^ field_name ^ "of a non-structure"))
+      | _ -> raise (Error ("Cannot access field '" ^ field_name ^ "' of a non-structure"))
       (* check field existence *)
     end
 
@@ -138,7 +138,7 @@ and type_expr (myexpr: Ptree.expr) =
     begin match (tr_expr1.expr_typ, tr_expr2.expr_typ) with
       | Tint, Tint -> {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
                        expr_typ = Tint}
-      | _ -> raise (Error ("Cannot use binop with type" ^ (string_of_type tr_expr1.expr_typ) ^ " and " ^ (string_of_type tr_expr2.expr_typ)))
+      | _ -> raise (Error ("Cannot use binop with type '" ^ (string_of_type tr_expr1.expr_typ) ^ "' and '" ^ (string_of_type tr_expr2.expr_typ) ^ "'"))
     end
   | Ptree.Ecall (ident, arg_list) -> begin
       let fun_name = ident.Ptree.id in
@@ -184,7 +184,7 @@ let rec type_stmt mystmt return_type =
     then raise (Error ("Invalid return type : '" ^ (string_of_type mytype) ^ "' { expected : '" ^ (string_of_type return_type) ^ "' }"))
     else Sreturn (type_expr myexpr)
   | Ptree.Sblock block -> Sblock (type_block block return_type [])
-  (* | Ptree.Sexpr myexpr *)
+  | Ptree.Sexpr myexpr -> Sexpr (type_expr myexpr)
   | _ -> raise (Error "Stmt to be implemented")
 
 
@@ -216,8 +216,8 @@ and type_block ((varlist, stmtlist): Ptree.block) (return_type:Ttree.typ) (fun_f
   let typed_varlist = type_varlist varlist in
   List.iter add_variable typed_formals;
   List.iter add_variable typed_varlist;
-  print_string "variables:";
-  print_hashtable env_table;
+  (* print_string "variables:";
+  print_hashtable env_table; *)
   (* print_string "funs:";
      print_hashtable fun_table; *)
 
