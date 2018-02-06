@@ -9,6 +9,11 @@ struct coucou
   struct coucou *bidule;
 };
 
+struct coucou2
+{
+  struct coucou *bidule;
+};
+
 // struct coucou
 // {
 //   int a;
@@ -19,20 +24,21 @@ struct coucou
 
 int truc(int c)
 {
-  struct coucou *s;
   return 1;
   // return s;
 }
 
-struct coucou *fun()
-{
-  return 1;
-}
+// struct coucou *fun()
+// {
+//   return 1;
+// }
 
 int main()
 {
   int c;
   struct coucou *d;
+  struct coucou2 *c2;
   //a = a + 3;
+  d->bidule;
   return 1;
 }

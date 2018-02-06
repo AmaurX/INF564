@@ -20,6 +20,16 @@
 			"problemMatcher": [
 				"$ocamlc"
 			]
-		}
+		},
+		{
+			"label": "test",
+			"type": "shell",
+			"command": "make tests",
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+
 	]
 }

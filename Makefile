@@ -12,22 +12,29 @@ main.native: *.ml*
 main.d.byte: *.ml*
 	ocamlbuild $@
 
-mini-c:
-	ln -s main.native $@
-
+mini-c: 
+	ln -sf main.native $@
 
 doc: *.ml* cleandoc
 	# ocamlbuild main.docdir/index.html
 	# ocamldoc -html *.ml* -d doc -I _build
 	ocamldoc -html *.ml* -d doc -I _build -inv-merge-ml-mli -verbose -m A
 
-.PHONY: clean cleandoc
+.PHONY: clean cleandoc tests
+
+tests: mini-c
+	ln -sf mini-c tests/mini-c
+	cd tests && ./run -2 mini-c
+
+cleanmini:
+	$(RM) tests/mini-c
+	$(RM) mini-c
+	$(RM) main.native
+
 cleandoc:
 # 	$(RM) main.docdir
 	$(RM) doc/*
 
-clean: cleandoc
-	$(RM) mini
-	$(RM) main.native
+clean: cleandoc cleanmini
 	$(RM) -r _build
 
