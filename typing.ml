@@ -5,7 +5,10 @@ open Ttree
 (* utiliser cette exception pour signaler une erreur de typage *)
 exception Error of string
 
+(* Stores type of defined structures *)
 let struct_table = Hashtbl.create 16
+
+(* Stores variables defined in the current scope *)
 let env_table = Hashtbl.create 16
 
 let string_of_type = function
@@ -16,7 +19,7 @@ let string_of_type = function
 
 
 (** Prints all keys of a (string, 'a) Hashtable 
-@param table a (string, 'a) Hashtable
+    @param table a (string, 'a) Hashtable
 *)
 let print_hashtable table = 
   print_string ("\ntable\n");
@@ -25,9 +28,9 @@ let print_hashtable table =
 
 (** Converts Ptree.typ to Ttree.typ *)
 let handle_type = function
-| Ptree.Tint -> Tint
-| Ptree.Tstructp id -> try let tstruct = (Hashtbl.find struct_table id.Ptree.id) in Tstructp tstruct with 
-    Not_found -> raise (Error ("Struct " ^ id.Ptree.id ^ " undefined"))
+  | Ptree.Tint -> Tint
+  | Ptree.Tstructp id -> try let tstruct = (Hashtbl.find struct_table id.Ptree.id) in Tstructp tstruct with 
+      Not_found -> raise (Error ("Struct " ^ id.Ptree.id ^ " undefined"))
 
 
 let type_var (mytype , identity) = (handle_type mytype , identity.Ptree.id)
@@ -35,8 +38,8 @@ let type_var (mytype , identity) = (handle_type mytype , identity.Ptree.id)
 
 (** Sequentially types all the vars of the list *)
 let rec type_varlist = function
- | var::endlist -> type_var var ::type_varlist endlist
- | [] -> []
+  | var::endlist -> type_var var ::type_varlist endlist
+  | [] -> []
 
 
 (*  *)
@@ -51,33 +54,33 @@ let varlist_to_hashtable varlist table=
         then raise (Error ("Field" ^ identity ^ " is already declared"));
         Hashtbl.add table identity {field_name = identity; field_typ =  mytype};
         (* print_string ("added item\n"); *)
-        
+
         inner_filler table remainder
-    end
-    in inner_filler table typedlist; ()
-    (* print_hashtable table;  *)
+      end
+  in inner_filler table typedlist; ()
+(* print_hashtable table;  *)
 
 (** Checks  the type validity of an expression 
-@param myexpr an expression
+    @param myexpr an expression
 *)
 let rec type_expr (myexpr: Ptree.expr) = 
   match myexpr.Ptree.expr_node with 
   | Ptree.Econst i -> {expr_node = Econst i;
-                expr_typ = Tint}
+                       expr_typ = Tint}
   | Ptree.Eunop (myunop, myexpr) -> let treeexpr = type_expr myexpr in 
-              begin match treeexpr.expr_typ with
-                | Tint -> {expr_node = Eunop (myunop, treeexpr);
-                expr_typ = Tint}
-                | _ -> raise (Error ("Cannot use unop with type" ^ (string_of_type treeexpr.expr_typ)))
-              end
+    begin match treeexpr.expr_typ with
+      | Tint -> {expr_node = Eunop (myunop, treeexpr);
+                 expr_typ = Tint}
+      | _ -> raise (Error ("Cannot use unop with type" ^ (string_of_type treeexpr.expr_typ)))
+    end
   | Ptree.Ebinop (mybinop, expr1, expr2) -> let tr_expr1 = type_expr expr1 in
-                                            let tr_expr2 = type_expr expr2 in 
-                                            begin match (tr_expr1.expr_typ, tr_expr2.expr_typ) with
-                | Tint, Tint -> {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
-                                 expr_typ = Tint}
-                | _ -> raise (Error ("Cannot use binop with type" ^ (string_of_type tr_expr1.expr_typ) ^ " and " ^ (string_of_type tr_expr2.expr_typ)))
-              end
-| _ -> raise (Error "To be implemented")
+    let tr_expr2 = type_expr expr2 in 
+    begin match (tr_expr1.expr_typ, tr_expr2.expr_typ) with
+      | Tint, Tint -> {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
+                       expr_typ = Tint}
+      | _ -> raise (Error ("Cannot use binop with type" ^ (string_of_type tr_expr1.expr_typ) ^ " and " ^ (string_of_type tr_expr2.expr_typ)))
+    end
+  | _ -> raise (Error "To be implemented")
 
 let rec type_stmt mystmt = 
   match mystmt.Ptree.stmt_node with 
@@ -93,6 +96,7 @@ and type_stmtlist = function
 
 and type_block ((varlist ,stmtlist): Ptree.block ) : Ttree.block =
   print_string "block\n";
+  (* Temporary table to store block-scoped variables *)
   let block_variable_table = Hashtbl.create 17 in
   let add_variable (vartype,name) = 
     if Hashtbl.mem block_variable_table name 
@@ -123,17 +127,17 @@ let type_decl_struct ((identity, varlist) : Ptree.decl_struct) =
   let myfields = Hashtbl.create 16 in
   Hashtbl.add struct_table identity.Ptree.id {str_name = identity.Ptree.id; str_fields = myfields};
   varlist_to_hashtable varlist myfields
-  (* let typed_struct = {str_name = identity.Ptree.id; str_fields = myfields} in *)
-  (* Hashtbl.add struct_table identity.Ptree.id typed_struct *)
-                 (* typed_struct  ;  *)
-    (* {str_name = "a"; str_fields = Hashtbl.create 10} *)
+(* let typed_struct = {str_name = identity.Ptree.id; str_fields = myfields} in *)
+(* Hashtbl.add struct_table identity.Ptree.id typed_struct *)
+(* typed_struct  ;  *)
+(* {str_name = "a"; str_fields = Hashtbl.create 10} *)
 
 
 let rec type_decls = function
   | decl::declElse -> begin match decl with   
-                      | Ptree.Dstruct d -> type_decl_struct d ; type_decls declElse
-                      | Ptree.Dfun d -> type_decl_fun d :: type_decls declElse
-                      end
+      | Ptree.Dstruct d -> type_decl_struct d ; type_decls declElse
+      | Ptree.Dfun d -> type_decl_fun d :: type_decls declElse
+    end
   | []-> []
 
 let program p = type_decls p

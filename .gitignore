@@ -1,4 +1,5 @@
-.vscode
+# .vscode
+
 _build/
 
 # Executables
@@ -7,3 +8,4 @@ mini-c
 
 # documentation
 main.docdir
+doc
