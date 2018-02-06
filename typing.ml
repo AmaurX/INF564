@@ -1,3 +1,7 @@
+(** 
+Type-checking module of mini-c
+*)
+
 
 (* open Ptree *)
 open Ttree
@@ -40,7 +44,7 @@ let string_of_type = function
   | Ttypenull  -> "typenull"
 
 
-(** Prints all keys of a (string, 'a) Hashtable 
+(** Prints all keys of a Hashtable 
     @param table a (string, 'a) Hashtable
 *)
 let print_hashtable table = 
@@ -104,28 +108,29 @@ let rec type_expr (myexpr: Ptree.expr) =
     end
   | _ -> raise (Error "To be implemented")
 
-(** Checks the correct typing of a statement *)
+(** Checks the correct typing of a statement
+@param mystmt statement to type
+@param return_type the only allowed type for a return stmt
+*)
 let rec type_stmt mystmt return_type = 
   match mystmt.Ptree.stmt_node with 
   | Ptree.Sreturn myexpr -> let mytype = (type_expr myexpr).expr_typ in
-    if mytype = return_type 
-    then raise (Error ("Invalid return type : " ^ (string_of_type mytype) ^ " { expected :" ^ (string_of_type return_type) ^ " }"))
+    if not (mytype = return_type )
+    then raise (Error ("Invalid return type : '" ^ (string_of_type mytype) ^ "' { expected : '" ^ (string_of_type return_type) ^ "' }"))
     else Sreturn (type_expr myexpr)
   | Ptree.Sblock block -> Sblock (type_block block return_type)
   | _ -> raise (Error "To be implemented")
 
 
-and type_stmtlist = function
-  | mystmt::endlist -> type_stmt mystmt ::type_stmtlist endlist
+and type_stmtlist stmtlist return_type = match stmtlist with
+  | mystmt::endlist -> type_stmt mystmt return_type::type_stmtlist endlist return_type
   | [] -> []
 
 (** Typing a block 
-
-
 @param block the block to type
-@param forbidden_names_list names of the context variables that are forbidden (bad bad bad choice)
+@param return_type expected return type of the block
  *)
-and type_block ((varlist, stmtlist): Ptree.block) (blockType:Ttree.typ) :Ttree.block =
+and type_block ((varlist, stmtlist): Ptree.block) (return_type:Ttree.typ) :Ttree.block =
   print_string "block\n";
   (* Temporary table to store block-scoped variables *)
   let block_variable_table = Hashtbl.create 17 in
@@ -140,7 +145,7 @@ and type_block ((varlist, stmtlist): Ptree.block) (blockType:Ttree.typ) :Ttree.b
   in
   let typed_varlist = type_varlist varlist in
   List.iter add_variable typed_varlist;
-  let typed_stmt = type_stmtlist stmtlist in
+  let typed_stmt = type_stmtlist stmtlist return_type in
   List.iter rm_variable typed_varlist;
   (typed_varlist, typed_stmt)
 

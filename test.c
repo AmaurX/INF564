@@ -19,16 +19,20 @@ struct coucou
 
 int truc(int c)
 {
-  struct coucou s;
+  struct coucou *s;
+  return 1;
   // return s;
+}
+
+struct coucou *fun()
+{
+  return 1;
 }
 
 int main()
 {
   int c;
   struct coucou *d;
-
-  truc(1);
   //a = a + 3;
   return 1;
 }
