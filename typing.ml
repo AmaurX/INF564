@@ -82,7 +82,8 @@ let is_bool_type = function
   | _ -> true
 
 (** Assignation policy
-Defines who gets the right to be assigned what
+    Defines who gets the right to be assigned what
+    iow is 'ltyp = rtyp' valid ?
 *)
 let is_assignable_to ltyp rtyp = match ltyp, rtyp with
   | Tint, Tint
@@ -91,6 +92,8 @@ let is_assignable_to ltyp rtyp = match ltyp, rtyp with
   | left_st, right_st when (are_equal_types left_st right_st) -> true
   | _ ->false
 
+let are_comparable ltyp rtyp = 
+  is_assignable_to ltyp rtyp || is_assignable_to rtyp ltyp
 
 (**************** TYPE-CHECKING ***************)
 
@@ -102,6 +105,8 @@ let handle_type = function
 
 
 let type_var (mytype , identity) = (handle_type mytype , identity.Ptree.id)
+
+
 
 
 (** Sequentially types all the vars of the list *)
@@ -203,6 +208,29 @@ and type_lvalue ass_expr = function
       (* check field existence *)
     end
 
+
+and type_binop mybinop exp1 exp2 = 
+  let is_valid (mybinop:Ptree.binop) (t1: typ) (t2: typ) = match t1,t2,mybinop with
+    | t1, t2, (Ptree.Beq|Ptree.Bneq) when (are_comparable t1 t2) -> (true, t1)
+    | t1, t2, (Ptree.Band|Ptree.Bor) when (is_bool_type t1 && is_bool_type t2) -> (true, Tint)
+    | Tint, Tint, (Ptree.Blt|Ptree.Ble|Ptree.Bgt|Ptree.Bge|Ptree.Badd|Ptree.Bsub|Ptree.Bmul|Ptree.Bdiv) -> (true, Tint)
+    | _ -> (false, Tint)
+  in
+  let tr_expr1 = type_expr exp1 in
+  let tr_expr2 = type_expr exp2 in 
+  let (valid, type_res) = is_valid mybinop tr_expr1.expr_typ tr_expr2.expr_typ in
+  if not valid
+  then raise (Error (sprintf "%d: Invalid binop with type '%s' and '%s'" ((fst exp1.Ptree.expr_loc).Lexing.pos_lnum) (string_of_type tr_expr1.expr_typ) (string_of_type tr_expr2.expr_typ)));
+  {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
+   expr_typ = type_res}
+(* begin match (tr_expr1.expr_typ, tr_expr2.expr_typ, mybinop) with
+   (* equality *)
+   | t1, t2, (Beq|Bneq) when (are_equal_types t1 t2) -> 
+   | Tint, Tint, _ -> {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
+                      expr_typ = Tint}
+   | _ -> raise (Error ("Cannot use binop with type '" ^ (string_of_type tr_expr1.expr_typ) ^ "' and '" ^ (string_of_type tr_expr2.expr_typ) ^ "'")) *)
+
+
 (* let tpd_lvalue = type_lvalue myrvalue in 
    let tpd_expr = type_expr myexpr in
    if not (tpd_expr.expr_typ = tpd_lvalue.expr_typ)
@@ -222,13 +250,7 @@ and type_expr (myexpr: Ptree.expr) =
                  expr_typ = Tint}
       | _ -> raise (Error ("Cannot use unop with type" ^ (string_of_type treeexpr.expr_typ)))
     end
-  | Ptree.Ebinop (mybinop, expr1, expr2) -> let tr_expr1 = type_expr expr1 in
-    let tr_expr2 = type_expr expr2 in 
-    begin match (tr_expr1.expr_typ, tr_expr2.expr_typ) with
-      | Tint, Tint -> {expr_node = Ebinop (mybinop, tr_expr1, tr_expr2);
-                       expr_typ = Tint}
-      | _ -> raise (Error ("Cannot use binop with type '" ^ (string_of_type tr_expr1.expr_typ) ^ "' and '" ^ (string_of_type tr_expr2.expr_typ) ^ "'"))
-    end
+  | Ptree.Ebinop (mybinop, expr1, expr2) -> type_binop mybinop expr1 expr2
   | Ptree.Ecall (ident, arg_list) -> begin
       let fun_name = ident.Ptree.id in
       (* Checking existence *)
@@ -246,7 +268,7 @@ and type_expr (myexpr: Ptree.expr) =
                let (decl_typ, decl_name) = decl_formal in
                let typed_expr = type_expr call_expr in
                let expr_typ = typed_expr.expr_typ in
-               if not (are_equal_types decl_typ expr_typ)
+               if not (is_assignable_to decl_typ expr_typ)
                then raise (Error (sprintf "incompatible types for argument '%s' of '%s' : expected '%s', got '%s'" 
                                     decl_name fun_name (string_of_type decl_typ) (string_of_type expr_typ)));
                typed_expr
@@ -281,7 +303,7 @@ let rec type_stmt mystmt return_type =
   (* print_string ((string_of_stmt mystmt) ^"\n"); *)
   match mystmt.Ptree.stmt_node with 
   | Ptree.Sreturn myexpr -> let mytype = (type_expr myexpr).expr_typ in
-    if not (are_equal_types mytype return_type )
+    if not (is_assignable_to return_type mytype)
     then raise (Error ("Invalid return type : '" ^ (string_of_type mytype) ^ "' { expected : '" ^ (string_of_type return_type) ^ "' }"))
     else Sreturn (type_expr myexpr)
   | Ptree.Sblock block -> Sblock (type_block block return_type [])
