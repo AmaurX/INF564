@@ -170,7 +170,7 @@ and type_expr (myexpr: Ptree.expr) =
       }
     end
   | Ptree.Eright mylvalue -> type_lvalue mylvalue
-  | _ -> raise (Error "To be implemented")
+  | _ -> raise (Error "Expr to be implemented")
 
 ;;
 (** Checks the correct typing of a statement
@@ -191,6 +191,7 @@ let rec type_stmt mystmt return_type =
       let tpd_else_s = type_stmt else_s return_type in
       Sif (tpd_expr,tpd_if_s,tpd_else_s)
     end
+  | Ptree.Sskip -> Sskip
   | _ -> raise (Error "Stmt to be implemented")
 
 
