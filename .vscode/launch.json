@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "${workspaceRoot}/main.d.byte",
 			"console": "internalConsole",
-			"stopOnEntry": true,
+			"stopOnEntry": false,
 			"preLaunchTask": "build-debug",
 			"arguments": [
 				"--debug",

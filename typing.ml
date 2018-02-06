@@ -11,6 +11,28 @@ let struct_table = Hashtbl.create 16
 (* Stores variables defined in the current scope *)
 let env_table = Hashtbl.create 16
 
+
+let init_fun_table () = 
+  let fun_table = Hashtbl.create 16 in
+  let ext_fn = 
+    [
+      {  fun_typ = Tint;
+         fun_name = "putchar";
+         fun_formals = [(Tint, "c")];
+         fun_body = ([],[]);
+      };
+      {  fun_typ = Tvoidstar;
+         fun_name = "setbrk";
+         fun_formals = [(Tint, "n")];
+         fun_body = ([],[]);
+      }
+    ] in 
+  let add_entry entry = Hashtbl.add fun_table entry.fun_name entry in
+  List.iter add_entry ext_fn;
+  fun_table
+
+let fun_table = init_fun_table ()
+
 let string_of_type = function
   | Tint       -> "int"
   | Tstructp x -> "struct " ^ x.str_name ^ " *"
@@ -82,10 +104,14 @@ let rec type_expr (myexpr: Ptree.expr) =
     end
   | _ -> raise (Error "To be implemented")
 
-let rec type_stmt mystmt = 
+(** Checks the correct typing of a statement *)
+let rec type_stmt mystmt return_type = 
   match mystmt.Ptree.stmt_node with 
-  | Ptree.Sreturn myexpr -> Sreturn (type_expr myexpr)
-  | Ptree.Sblock block -> Sblock (type_block block)
+  | Ptree.Sreturn myexpr -> let mytype = (type_expr myexpr).expr_typ in
+    if mytype = return_type 
+    then raise (Error ("Invalid return type : " ^ (string_of_type mytype) ^ " { expected :" ^ (string_of_type return_type) ^ " }"))
+    else Sreturn (type_expr myexpr)
+  | Ptree.Sblock block -> Sblock (type_block block return_type)
   | _ -> raise (Error "To be implemented")
 
 
@@ -93,8 +119,13 @@ and type_stmtlist = function
   | mystmt::endlist -> type_stmt mystmt ::type_stmtlist endlist
   | [] -> []
 
+(** Typing a block 
 
-and type_block ((varlist ,stmtlist): Ptree.block ) : Ttree.block =
+
+@param block the block to type
+@param forbidden_names_list names of the context variables that are forbidden (bad bad bad choice)
+ *)
+and type_block ((varlist, stmtlist): Ptree.block) (blockType:Ttree.typ) :Ttree.block =
   print_string "block\n";
   (* Temporary table to store block-scoped variables *)
   let block_variable_table = Hashtbl.create 17 in
@@ -113,12 +144,35 @@ and type_block ((varlist ,stmtlist): Ptree.block ) : Ttree.block =
   List.iter rm_variable typed_varlist;
   (typed_varlist, typed_stmt)
 
-
+(** registers a function . It should check 
+    - if the name doesn't already exists
+    - if given args are from an existing type
+    - if given args have different names
+    - if body ends returning the type fun_typ
+    and fail otherwise
+*)
 let type_decl_fun (d: Ptree.decl_fun) = 
-  { fun_typ = Tint;
-    fun_name = d.Ptree.fun_name.Ptree.id;
+  (** returns a list of args after having checked that names are unique *)
+  let list_arg_names formals_list fun_name = 
+    let add_name nlist ((t, ident):Ptree.decl_var) = 
+      let name = ident.Ptree.id in
+      if List.mem name nlist 
+      then raise (Error ("Argument '" ^ name ^ "' is declared more than once in" ^ fun_name));
+      nlist@[name] in
+    List.fold_left add_name [] d.Ptree.fun_formals in
+  
+  let fun_type = (handle_type d.Ptree.fun_typ) in
+  let fun_name = d.Ptree.fun_name.Ptree.id in
+  (* check name *)
+  if Hashtbl.mem fun_table fun_name
+  then raise (Error ("Function " ^ fun_name ^ " is already declared"));
+  (* check args *)
+  let formals_name_list = list_arg_names d.Ptree.fun_formals d.Ptree.fun_name.Ptree.id in
+  (* type body - when typing body we should check that the return type matches the function definition *)
+  { fun_typ = fun_type;
+    fun_name = fun_name;
     fun_formals = [];
-    fun_body = type_block d.Ptree.fun_body }
+    fun_body = type_block d.Ptree.fun_body fun_type}
 
 
 let type_decl_struct ((identity, varlist) : Ptree.decl_struct) =

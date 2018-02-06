@@ -17,13 +17,10 @@ struct coucou
 //   //float caca;
 // };
 
-int truc()
+int truc(int c)
 {
-  int c;
-  {
-    int a;
-  }
-  return 1 + 5;
+  struct coucou s;
+  // return s;
 }
 
 int main()
@@ -31,6 +28,7 @@ int main()
   int c;
   struct coucou *d;
 
+  truc(1);
   //a = a + 3;
   return 1;
 }
