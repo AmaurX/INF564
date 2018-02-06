@@ -81,6 +81,17 @@ let is_bool_type = function
   | Ttypenull -> false
   | _ -> true
 
+(** Assignation policy
+Defines who gets the right to be assigned what
+*)
+let is_assignable_to ltyp rtyp = match ltyp, rtyp with
+  | Tint, Tint
+  | Tstructp _, Tvoidstar
+  | Tstructp _, Tint -> true
+  | left_st, right_st when (are_equal_types left_st right_st) -> true
+  | _ ->false
+
+
 (**************** TYPE-CHECKING ***************)
 
 (** Converts Ptree.typ to Ttree.typ *)
@@ -153,7 +164,7 @@ let rec type_rvalue = function
 
 (** Typer of lvalue expressions
     Lvalues are left of an assignment
-    NOTE : structural comparisons on struct types here are causing a 'ot of memory' error
+    policy: Tsctructp allows Tstructp or Tvoid*
 
     @param ass_expr the expression that will be assigned to the lvalue
     @param lvalue the lvalue
@@ -166,7 +177,7 @@ and type_lvalue ass_expr = function
       then raise (Error ("Var '" ^ name ^ "' unbound in scope"));
       (* return type *)
       let var_type = Hashtbl.find env_table name in
-      if not (are_equal_types var_type ass_expr.expr_typ)
+      if not (is_assignable_to var_type ass_expr.expr_typ)
       then raise (Error (sprintf "Cannot assign a '%s' to var '%s' of type '%s'" (string_of_type ass_expr.expr_typ) name (string_of_type var_type))); 
       {
         expr_node = Eassign_local (name,ass_expr);
@@ -180,7 +191,7 @@ and type_lvalue ass_expr = function
           (* check is structure has a field of name field_name *)
           try 
             let field = Hashtbl.find structure.str_fields field_name in
-            if not(are_equal_types field.field_typ ass_expr.expr_typ) 
+            if not(is_assignable_to field.field_typ ass_expr.expr_typ) 
             then raise (Error (sprintf "Cannot assign a '%s' to field '%s' of struct '%s'" (string_of_type ass_expr.expr_typ) field_name (string_of_type typed_expr.expr_typ))); 
             {
               expr_node = Eassign_field (typed_expr, field, ass_expr);
@@ -249,6 +260,16 @@ and type_expr (myexpr: Ptree.expr) =
     end
   | Ptree.Eright mylvalue -> type_rvalue mylvalue
   | Ptree.Eassign (mylvalue, myexpr) -> type_lvalue (type_expr myexpr) mylvalue
+  | Ptree.Esizeof (st_ident) -> begin
+      let st_name = st_ident.Ptree.id in
+      if not (Hashtbl.mem struct_table st_name)
+      then raise (Error (sprintf "sizeof: unknown structure name '%s'" st_name));
+      let structure = Hashtbl.find struct_table st_name in
+      {
+        expr_node = Esizeof structure;
+        expr_typ = Tint
+      }
+    end
   | _ -> raise (Error "Expr to be implemented")
 
 ;;
