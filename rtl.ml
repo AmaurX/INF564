@@ -10,15 +10,22 @@ let generate i =
     graph := Label.M.add l i !graph;
     l
 
-let rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
+  
+
+let rec rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
   | Ttree.Econst i -> generate (Econst (i, dest_register, destl))
   | Ttree.Eaccess_local var_ident -> let var_reg = Hashtbl.find locals var_ident in generate (Embinop (Ops.Mmov, var_reg, dest_register, destl))
+  | Ttree.Ebinop (binop, e1, e2) -> let reg_e1 = Register.fresh() in 
+                                      (* let reg_e2 = Register.fresh() in  fait *)
+                                        let next_instr = generate (Embinop (Ops.Mdiv, reg_e1, dest_register, destl)) in
+                                          let lb_e2 = rtl_expr e2 locals next_instr dest_register in
+                                            rtl_expr e1 locals lb_e2 reg_e1
   | _ -> Label.fresh()
   (* | Eaccess_field of expr * field
   | Eassign_local of ident * expr
   | Eassign_field of expr * field * expr
   | Eunop of unop * expr (* fait *)
-  | Ebinop of binop * expr * expr (* fait *)
+
   | Ecall of ident * expr list
   | Esizeof of structure *)
 
@@ -51,6 +58,9 @@ let rtl_body body locals (result:Register.t) exit =
 
 
 let rtl_fun fn = 
+  let extract_values table = 
+      Hashtbl.fold (fun key value val_list -> val_list@[value]) table []
+  in
   let exit = Label.fresh() in 
   let result = Register.fresh() in
   let locals = Hashtbl.create 16 in
@@ -58,7 +68,7 @@ let entry = rtl_body fn.Ttree.fun_body locals result exit in
   {fun_name = fn.Ttree.fun_name;
     fun_formals = [];
     fun_result = result;
-    fun_locals = Register.set_of_list [];
+    fun_locals = Register.set_of_list (extract_values locals);
     fun_entry = entry;
     fun_exit = exit;
     fun_body = !graph ;}
