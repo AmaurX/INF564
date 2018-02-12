@@ -3,7 +3,6 @@
 *)
 
 open Printf
-
 (* open Ptree *)
 open Ttree
 
@@ -257,7 +256,7 @@ and type_expr (myexpr: Ptree.expr) =
       then raise (Error ("Unbound function '" ^ fun_name ^ "'"));
       let fun_decl = Hashtbl.find fun_table fun_name in
       (* checking args number *)
-      if not (0 = (List.compare_lengths fun_decl.fun_formals arg_list))
+      if (List.length fun_decl.fun_formals <> List.length arg_list)
       then raise (Error ("Invalid arg number for  '" ^ fun_name ^ "'"));
       (* checking args one by one *)
       let typed_expr_list = List.map2 
@@ -422,7 +421,7 @@ let rec type_decls = function
     end
   | []-> []
 
-let program debug p = 
+let program p = 
   let total_decl = type_decls p in
   (* Checking the presence of 'int main()' *)
   if not (List.exists (fun (d: Ttree.decl_fun) -> (d.fun_name = "main" && d.fun_typ = Tint && d.fun_formals = [])) total_decl)
