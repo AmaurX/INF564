@@ -106,9 +106,6 @@ let handle_type = function
 
 let type_var (mytype , identity) = (handle_type mytype , identity.Ptree.id)
 
-
-
-
 (** Sequentially types all the vars of the list *)
 let rec type_varlist = function
   | var::endlist -> type_var var ::type_varlist endlist
