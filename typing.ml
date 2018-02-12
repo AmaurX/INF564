@@ -422,7 +422,7 @@ let rec type_decls = function
     end
   | []-> []
 
-let program p = 
+let program debug p = 
   let total_decl = type_decls p in
   (* Checking the presence of 'int main()' *)
   if not (List.exists (fun (d: Ttree.decl_fun) -> (d.fun_name = "main" && d.fun_typ = Tint && d.fun_formals = [])) total_decl)
