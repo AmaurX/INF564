@@ -5,8 +5,10 @@ tests/
 
 # Executables
 main.native
+main.d.byte
 mini-c
 
 # documentation
 main.docdir
 doc
+main.d.byte
