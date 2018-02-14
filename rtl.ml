@@ -1,3 +1,7 @@
+(**
+instruction are on x86-64 operation,source,destination format
+with dest = dest (operation) source
+*)
 (* open Ttree *)
 open Rtltree
 
@@ -11,6 +15,24 @@ let generate i =
   l
 (**
    RTL translation for binary operators 
+   @param unop the unary operator
+   @param expr expression to give to the operator
+   @param locals map of local fields
+   @param destl Label of the next instruction
+   @param dest_register Register to store the result of the expression
+*)
+let rec rtl_unop unop expr locals destl dest_register = 
+  match unop with 
+  | Ptree.Uminus -> let expr_reg = Register.fresh() in
+    (* dest = zero - dest *)
+    let sub_lb = generate (Embinop (Ops.Msub, expr_reg, dest_register, destl)) in
+    (* zero = 0 *)
+    let loadZero_lb = generate(Econst (Int32.zero, dest_register, sub_lb)) in
+    (* dest = compute(expr) *)
+    rtl_expr expr locals loadZero_lb expr_reg
+  | _ -> raise (Error "unop not supported")
+(**
+   RTL translation for binary operators 
    @param binop binay opeator
    @param e1 first expression (left side)
    @param e2 second expression (right side)
@@ -18,7 +40,7 @@ let generate i =
    @param destl Label of the next instruction
    @param dest_register Register to store the result of the expression
 *)
-let rec rtl_binop binop e1 e2 locals destl dest_register = 
+and rtl_binop binop e1 e2 locals destl dest_register = 
   (* match binop with
      | (Ptree.Badd | Ptree.Bdiv | Ptree.Bdiv | Ptree.Bsub) -> *)
   let translate_arith_binop binop = match binop with
@@ -66,6 +88,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
   | Ttree.Econst i -> generate (Econst (i, dest_register, destl))
   | Ttree.Eaccess_local var_ident -> let var_reg = Hashtbl.find locals var_ident in generate (Embinop (Ops.Mmov, var_reg, dest_register, destl))
   | Ttree.Ebinop (binop, e1, e2) ->  rtl_binop binop e1 e2 locals destl dest_register 
+  | Ttree.Eunop (unop, expr) ->  rtl_unop unop expr locals destl dest_register 
   | _ -> Label.fresh()
 (* | Eaccess_field of expr * field
    | Eassign_local of ident * expr
