@@ -4,7 +4,9 @@
 (** opérations unaires *)
 type munop =
   | Maddi   of int32
+  (** equal to const *)
   | Msetei  of int32
+  (** diff from const*)
   | Msetnei of int32
 
 (** opérations binaires *)
@@ -25,6 +27,7 @@ type mbinop =
 type mubranch =
   | Mjz
   | Mjnz
+  (** inf or eq to const *)
   | Mjlei of int32
   | Mjgi  of int32
 

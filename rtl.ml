@@ -1,6 +1,6 @@
 (**
-instruction are on x86-64 operation,source,destination format
-with dest = dest (operation) source
+   instruction are on x86-64 operation,source,destination format
+   with dest = dest (operation) source
 *)
 (* open Ttree *)
 open Rtltree
@@ -14,6 +14,21 @@ let generate i =
   graph := Label.M.add l i !graph;
   l
 (**
+   RTL translation for if-else branchs
+   @param expr expression to evaluate as a condition
+   @param if_stmt block executed if true
+   @param else_stmt block executed if false
+   @param locals map of local fields
+   @param destl Label of the next instruction (after the end of branched block)
+   @param dest_register Register to store the result of the expression (unused ?)
+*)
+let rec rtl_if expr if_stmt else_stmt locals dest_lb dest_reg exit_lb =
+  let test_reg = Register.fresh() in 
+  let if_lb = rtl_stmt if_stmt locals dest_lb dest_reg exit_lb in 
+  let else_lb = rtl_stmt else_stmt locals dest_lb dest_reg exit_lb in 
+  let test_lb = generate (Emubranch (Ops.Mjnz, test_reg, if_lb, else_lb)) in
+  rtl_expr expr locals test_lb test_reg
+(**
    RTL translation for binary operators 
    @param unop the unary operator
    @param expr expression to give to the operator
@@ -21,7 +36,7 @@ let generate i =
    @param destl Label of the next instruction
    @param dest_register Register to store the result of the expression
 *)
-let rec rtl_unop unop expr locals destl dest_register = 
+and rtl_unop unop expr locals destl dest_register = 
   match unop with 
   | Ptree.Uminus -> let expr_reg = Register.fresh() in
     (* dest = zero - dest *)
@@ -30,7 +45,9 @@ let rec rtl_unop unop expr locals destl dest_register =
     let loadZero_lb = generate(Econst (Int32.zero, dest_register, sub_lb)) in
     (* dest = compute(expr) *)
     rtl_expr expr locals loadZero_lb expr_reg
-  | _ -> raise (Error "unop not supported")
+  | Ptree.Unot -> 
+    let not_lb = generate (Emunop ((Ops.Msetnei Int32.zero), dest_register, destl)) in
+    rtl_expr expr locals not_lb dest_register
 (**
    RTL translation for binary operators 
    @param binop binay opeator
@@ -88,8 +105,8 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
   | Ttree.Econst i -> generate (Econst (i, dest_register, destl))
   | Ttree.Eaccess_local var_ident -> let var_reg = Hashtbl.find locals var_ident in generate (Embinop (Ops.Mmov, var_reg, dest_register, destl))
   | Ttree.Ebinop (binop, e1, e2) ->  rtl_binop binop e1 e2 locals destl dest_register 
-  | Ttree.Eunop (unop, expr) ->  rtl_unop unop expr locals destl dest_register 
-  | _ -> Label.fresh()
+  | Ttree.Eunop (unop, expr) ->  rtl_unop unop expr locals destl dest_register
+  | _ -> raise (Error "expression not supported")
 (* | Eaccess_field of expr * field
    | Eassign_local of ident * expr
    | Eassign_field of expr * field * expr
@@ -99,32 +116,40 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
    | Esizeof of structure *)
 
 
-let rtl_stmt stmt locals destl retr exitl = 
+and rtl_stmt stmt locals destl return_reg exitl = 
   match stmt with 
-  | Ttree.Sreturn expr -> rtl_expr expr locals exitl retr
-  | Ttree.Sexpr expr -> let result_reg = Register.fresh() in rtl_expr expr locals destl result_reg 
-  | _ -> Label.fresh()
+  | Ttree.Sreturn expr -> rtl_expr expr locals exitl return_reg
+  | Ttree.Sexpr expr -> let result_reg = Register.fresh() in rtl_expr expr locals destl result_reg
+  | Ttree.Sif (expr, if_stmt, else_stmt) -> rtl_if expr if_stmt else_stmt locals destl return_reg exitl
+  | Ttree.Sskip -> generate (Egoto destl)
+  | Ttree.Sblock block -> rtl_body block locals destl return_reg exitl
+  | _ -> raise (Error "statement not supported")
 
 
 
-
-let rec rtl_stmt_list stmtlist locals destl (result:Register.t) exit = 
+and rtl_stmt_list stmtlist locals destl (result:Register.t) exit_lb = 
   match stmtlist with
-  | stmt::[] -> let stmtlabel = rtl_stmt stmt locals destl result exit in stmtlabel
-  | stmt::remain -> let stmtlabel = rtl_stmt stmt locals destl result exit in rtl_stmt_list remain locals stmtlabel result exit
+  | stmt::[] -> let stmtlabel = rtl_stmt stmt locals destl result exit_lb in stmtlabel
+  | stmt::remain -> let stmtlabel = rtl_stmt stmt locals destl result exit_lb in rtl_stmt_list remain locals stmtlabel result exit_lb
   | [] -> raise (Error "body vide")
 
 
-
-let rtl_body body locals (result:Register.t) exit = 
+and rtl_body body locals dest_lb (result:Register.t) exit_lb = 
   let (varlist, stmtlist) = body in
   let rec fill_locals = function 
     | var::remain -> Hashtbl.add locals (snd var) (Register.fresh()); fill_locals remain
     | [] -> ()
   in
+  let rec unfill_locals = function 
+    | var::remain -> Hashtbl.remove locals (snd var); unfill_locals remain
+    | [] -> ()
+  in
   fill_locals varlist;
   let reversed_stmtlist = List.rev stmtlist in
-  rtl_stmt_list reversed_stmtlist locals exit result exit
+  let body_lb = rtl_stmt_list reversed_stmtlist locals exit_lb result exit_lb in
+  unfill_locals varlist;
+  body_lb
+
 
 
 let rtl_fun fn = 
@@ -134,7 +159,7 @@ let rtl_fun fn =
   let exit = Label.fresh() in 
   let result = Register.fresh() in
   let locals = Hashtbl.create 16 in
-  let entry = rtl_body fn.Ttree.fun_body locals result exit in
+  let entry = rtl_body fn.Ttree.fun_body locals exit result exit in
   {fun_name = fn.Ttree.fun_name;
    fun_formals = [];
    fun_result = result;
