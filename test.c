@@ -1,6 +1,7 @@
 
 int main()
 {
-  int q;
-  return -q;
+  int a;
+  int b;
+  return a / b;
 }
