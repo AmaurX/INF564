@@ -1,7 +1,6 @@
 # .vscode
 
 _build/
-tests/
 
 # Executables
 main.native
