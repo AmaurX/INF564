@@ -2,12 +2,13 @@
 int main()
 {
   int q;
-  q = 2;
-  while (2)
+  if (2)
   {
-    int c;
-    int q;
-    return q;
+    3 + 2;
+  }
+  else
+  {
+    q;
   }
   return 42;
 }

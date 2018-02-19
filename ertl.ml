@@ -9,6 +9,26 @@ let generate i =
   graph := Label.M.add l i !graph;
   l
 
+let treat_ecall (r, s, rList, l) =  
+  let beginLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int((List.length rList - 6) * 8 )) , Register.rsp, l)) else l
+  in
+  let labelcopy = generate (Embinop(Mmov, Register.result, r, beginLabel)) in
+  let k = if List.length rList <= 6 then List.length rList else 6  in
+  let labelCall = generate (Ecall (s, k, labelcopy)) in
+  let rec fill_recursif registerList index label=
+    if index <= 6 then 
+      begin match registerList with 
+      | reg::remain -> let newLabel = generate (Embinop (Mmov, reg, (List.nth Register.parameters index), label)) in fill_recursif remain (index+1) newLabel; newLabel
+      | [] -> label
+      end
+    else 
+      begin match registerList with 
+    | reg::remain -> let newLabel = generate (Epush_param (reg, label)) in fill_recursif remain (index+1) newLabel;newLabel
+    | [] -> label
+      end
+  in let lastLabel = fill_recursif rList 0 labelCall in
+  let goto = Egoto lastLabel in goto 
+    
 
 let treat_div (binop, r1, r2, l) = 
   let label1 = generate (Embinop (Mmov, Register.rax, r2 , l)) in
@@ -21,13 +41,13 @@ let instr = function
   | Rtltree.Eload (r1, n, r2, l) -> Eload (r1, n, r2, l)
   | Rtltree.Estore (r1, r2, n, l) -> Estore (r1, r2, n, l)
   | Rtltree.Emunop  (m, r, l) -> Emunop (m, r, l)
-| Rtltree.Embinop (Mdiv, r1, r2, l) -> treat_div (Mdiv, r1, r2, l)
-| Rtltree.Embinop (m, r1, r2, l) -> Embinop (m, r1, r2, l)
+  | Rtltree.Embinop (Mdiv, r1, r2, l) -> treat_div (Mdiv, r1, r2, l)
+  | Rtltree.Embinop (m, r1, r2, l) -> Embinop (m, r1, r2, l)
     (** attention au sens : [op r1 r2] représente [r2 <- r2 op r1] *)
   | Rtltree.Emubranch (m, r, l1, l2) -> Emubranch (m, r, l1, l2)
   | Rtltree.Embbranch (m, r1, r2, l1, l2) -> Embbranch (m, r1, r2, l1, l2)
     (** attention au sens : [br r1 r2] représente [r2 br r1] *)
-  (* | Rtltree.Ecall (r, s, rlist, l) -> Ecall (s, List.length rlist, l) ATTENTION PAS LE BON NOMBRE K *)
+  | Rtltree.Ecall (r, s, rlist, l) -> treat_ecall (r, s, rlist, l)
   | Rtltree.Egoto (l) -> Egoto (l)
   | _ -> raise (Error "Wrong type of instruction")
 
