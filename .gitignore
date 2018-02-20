@@ -1,12 +1,15 @@
-.vscode
+# .vscode
 
 _build/
+
+# Untracked files :
+test.c
 
 # Executables
 main.native
 main.d.byte
 mini-c
-test.c
+
 # documentation
 main.docdir
 doc

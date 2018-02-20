@@ -17,7 +17,7 @@ let treat_ecall (r, s, rList, l) =
   let k = if List.length rList <= 6 then List.length rList else 6  in
   let labelCall = generate (Ecall (s, k, labelcopy)) in
   let rec fill_recursif registerList index label=
-    if index <= 6 then 
+    if index < 6 then 
       begin match registerList with 
       | reg::remain -> let newLabel = generate (Embinop (Mmov, reg, (List.nth Register.parameters index), label)) in fill_recursif remain (index+1) newLabel
       | [] -> label
@@ -66,14 +66,14 @@ let ertl_fun fn =
   (* entrée de la fonction*)
   let myargList = S.elements fn.Rtltree.fun_locals in
   let rec get_args argList count label =
-    if count <= 6 then 
+    if count < 6 then 
     begin match argList with 
     | reg::remain -> let newLabel = generate (Embinop (Mmov, (List.nth Register.parameters count), reg , label)) in get_args remain (count+1) newLabel
     | [] -> label
     end
   else 
     begin match argList with 
-    | reg::remain -> let newLabel = generate (Eget_param ((count - 6)*8, Register.rbp, label)) in get_args remain (count+1) newLabel
+    | reg::remain -> let newLabel = generate (Eget_param ((count - 6)*8, reg, label)) in get_args remain (count+1) newLabel
     | [] -> label
     end
   in
