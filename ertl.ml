@@ -1,5 +1,6 @@
 open Ertltree
 open Ops
+open Register
 exception Error of string
 
 let graph = ref Label.M.empty
@@ -10,24 +11,24 @@ let generate i =
   l
 
 let treat_ecall (r, s, rList, l) =  
-  let beginLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int((List.length rList - 6) * 8 )) , Register.rsp, l)) else l
+  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int((List.length rList - 6) * 8 )) , Register.rsp, l)) else l
   in
-  let labelcopy = generate (Embinop(Mmov, Register.result, r, beginLabel)) in
+  let labelcopy = generate (Embinop(Mmov, Register.result, r, lastLabel)) in
   let k = if List.length rList <= 6 then List.length rList else 6  in
   let labelCall = generate (Ecall (s, k, labelcopy)) in
   let rec fill_recursif registerList index label=
     if index <= 6 then 
       begin match registerList with 
-      | reg::remain -> let newLabel = generate (Embinop (Mmov, reg, (List.nth Register.parameters index), label)) in fill_recursif remain (index+1) newLabel; newLabel
+      | reg::remain -> let newLabel = generate (Embinop (Mmov, reg, (List.nth Register.parameters index), label)) in fill_recursif remain (index+1) newLabel
       | [] -> label
       end
     else 
       begin match registerList with 
-    | reg::remain -> let newLabel = generate (Epush_param (reg, label)) in fill_recursif remain (index+1) newLabel;newLabel
+    | reg::remain -> let newLabel = generate (Epush_param (reg, label)) in fill_recursif remain (index+1) newLabel
     | [] -> label
       end
-  in let lastLabel = fill_recursif rList 0 labelCall in
-  let goto = Egoto lastLabel in goto 
+  in let firstlabel = fill_recursif rList 0 labelCall in
+  let goto = Egoto firstlabel in goto 
     
 
 let treat_div (binop, r1, r2, l) = 
@@ -60,15 +61,63 @@ let ertl_body fun_body = Label.M.iter treat_instr_label fun_body
 
 
 let ertl_fun fn = 
-  graph := Label.M.add fn.Rtltree.fun_exit Ereturn !graph;
   ertl_body fn.Rtltree.fun_body;
+
+  (* entrée de la fonction*)
+  let myargList = [] 
+  in
+  let addToList reg = List.append myargList [reg] ; ()
+  in
+  S.iter addToList fn.Rtltree.fun_locals;
+  let rec get_args argList count label =
+    if count <= 6 then 
+    begin match argList with 
+    | reg::remain -> let newLabel = generate (Embinop (Mmov, (List.nth Register.parameters count), reg , label)) in get_args remain (count+1) newLabel
+    | [] -> label
+    end
+  else 
+    begin match argList with 
+    | reg::remain -> let newLabel = generate (Eget_param ((count - 6)*8, Register.rbp, label)) in get_args remain (count+1) newLabel
+    | [] -> label
+    end
+  in
+  let first_arg_label = get_args myargList 0 fn.Rtltree.fun_entry
+  in
+  let savedRegisterHsh = Hashtbl.create 16 in
+  let rec save_register registerList label = 
+    match registerList with
+    | registre::remain -> let savedRegister = Register.fresh() 
+                          in Hashtbl.add savedRegisterHsh registre  savedRegister;
+                          let newLabel = generate (Embinop (Mmov, registre, savedRegister, label))
+                          in save_register remain newLabel
+    | [] -> label
+  in
+  let first_calle_saved_lb = save_register Register.callee_saved first_arg_label in
+  let alloc_lb = generate (Ealloc_frame first_calle_saved_lb) 
+  in
+  (*Fin de l'entrée de la fonction*)
+
+  (*Debut de la sortie de fonction*)
+  (* graph := Label.M.add fn.Rtltree.fun_exit Ereturn !graph; *)
+  let return_lb = generate(Ereturn)  in
+  let delete_frame_lb = generate(Edelete_frame return_lb) 
+  in 
+  let rec restore_register registerList label = 
+    match registerList with
+    | registre::remain -> let savedRegister = Hashtbl.find savedRegisterHsh registre in let newLabel = generate (Embinop (Mmov, savedRegister, registre, label)) in restore_register remain newLabel
+    | [] -> label
+  in
+  let first_restore_register_lb = restore_register Register.callee_saved delete_frame_lb in
+  let result_copy = Embinop(Mmov, fn.Rtltree.fun_result, Register.result, first_restore_register_lb) in
+  graph := Label.M.add fn.Rtltree.fun_exit result_copy !graph;
+  (*Fin de la sortie de fonction*)
  {
   fun_name = fn.Rtltree.fun_name;
   fun_formals = List.length fn.Rtltree.fun_formals; (* nb total d'arguments *)
   fun_locals = fn.Rtltree.fun_locals;
-  fun_entry = fn.Rtltree.fun_entry;
+  fun_entry = alloc_lb;
   fun_body = !graph;
-}
+  }
 
 let rec ertl_funlist = function
 | fn::remain -> ertl_fun fn :: ertl_funlist remain

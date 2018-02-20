@@ -11,5 +11,11 @@ struct coucou{
 
 int main()
 {
-  return 1;
+  int q;
+  if (2)
+  {
+    3 / 2;
+  }
+
+  return truc(1, 2);
 }
