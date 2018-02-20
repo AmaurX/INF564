@@ -64,11 +64,7 @@ let ertl_fun fn =
   ertl_body fn.Rtltree.fun_body;
 
   (* entrée de la fonction*)
-  let myargList = [] 
-  in
-  let addToList reg = List.append myargList [reg] ; ()
-  in
-  S.iter addToList fn.Rtltree.fun_locals;
+  let myargList = S.elements fn.Rtltree.fun_locals in
   let rec get_args argList count label =
     if count <= 6 then 
     begin match argList with 
@@ -86,7 +82,7 @@ let ertl_fun fn =
   let savedRegisterHsh = Hashtbl.create 16 in
   let rec save_register registerList label = 
     match registerList with
-    | registre::remain -> let savedRegister = Register.fresh() 
+    | registre::remain -> let savedRegister = Register.fresh()  
                           in Hashtbl.add savedRegisterHsh registre  savedRegister;
                           let newLabel = generate (Embinop (Mmov, registre, savedRegister, label))
                           in save_register remain newLabel

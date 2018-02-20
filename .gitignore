@@ -6,7 +6,7 @@ _build/
 main.native
 main.d.byte
 mini-c
-
+test.c
 # documentation
 main.docdir
 doc
