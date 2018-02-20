@@ -1,17 +1,15 @@
-// struct coucou{
-//   int a;
-// };
-
-int truc(int a, int b){
-  return truc (a-1,b);
-}
+struct coucou{
+  int a;
+  struct coucou *b;
+  int c;
+  struct coucou *d;
+  int e;
+  struct coucou *f;
+  int g;
+  struct coucou *h;
+};
 
 int main()
 {
-  int q;
-  {
-    q;
-    sbrk(13);
-  }
-  return truc(1, 2);
+  return 1;
 }

@@ -115,18 +115,23 @@ let rec type_varlist = function
 let varlist_to_hashtable varlist table= 
   let typedlist = type_varlist varlist in
   (* let table = Hashtbl.create 16 in *)
-  let rec inner_filler table = function
+  let rec inner_filler table index= function
     | [] -> ()
     | (mytype, identity)::remainder -> begin
         (* print_string identity ;  *)
         if Hashtbl.mem table identity 
         then raise (Error ("Field" ^ identity ^ " is already declared"));
-        Hashtbl.add table identity {field_name = identity; field_typ =  mytype};
+        let field = {
+          field_name = identity; 
+          field_typ =  mytype;
+          field_pos = index;
+        } in 
+        Hashtbl.add table identity field;
         (* print_string ("added item\n"); *)
 
-        inner_filler table remainder
+        inner_filler table (index+1) remainder
       end
-  in inner_filler table typedlist; ()
+  in inner_filler table 0 typedlist; ()
 (* print_hashtable table;  *)
 
 (** Rvalue typer
@@ -288,7 +293,7 @@ and type_expr (myexpr: Ptree.expr) =
         expr_typ = Tint
       }
     end
-  | _ -> raise (Error "Expr to be implemented")
+  (* | _ -> raise (Error "Expr to be implemented") *)
 
 ;;
 (** Checks the correct typing of a statement
@@ -320,7 +325,7 @@ let rec type_stmt mystmt return_type =
       Swhile (tpd_expr, tpd_st)
     end
   | Ptree.Sskip -> Sskip
-  | _ -> raise (Error "Stmt to be implemented")
+  (* | _ -> raise (Error "Stmt to be implemented") *)
 
 
 and type_stmtlist stmtlist return_type = match stmtlist with

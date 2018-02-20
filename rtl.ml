@@ -185,6 +185,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
       |Not_found -> raise (Error ("Variable not found " ^ var_ident))
     end
   | Ttree.Ecall (fun_ident, expr_list) -> rtl_funcall fun_ident expr_list locals destl dest_register
+  (* | Ttree.Esizeof (structure) -> structure. *)
   | _ -> raise (Error "expression not supported")
 (* | Eaccess_field of expr * field
    | Eassign_local of ident * expr
