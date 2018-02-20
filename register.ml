@@ -35,9 +35,9 @@ let result =
 
 let caller_saved =
   rax :: "%r10" :: parameters
-
+ 
 let callee_saved =
-  [ "%rbx"; "%r12"; (* "%r13"; "%r14"; "%r15" *) ]
+  [ "%rbx"; "%r12"; "%r13"]  (* "%r13"; "%r14"; "%r15" *)
 
 let allocatable = set_of_list (caller_saved @ callee_saved)
 
