@@ -10,14 +10,16 @@ type typ =
   | Ttypenull             (* le type donné à la constante 0 *)
 
 and structure = {
-  str_name  : ident;
-  str_fields: (ident, field) Hashtbl.t;
+  str_name      : ident;
+  str_fields    : (ident, field) Hashtbl.t;
+  (* str_totalSize : int; *)
   (* on pourra ajouter plus tard ici la taille totale de la structure *)
 }
 
 and field = {
   field_name: string;
   field_typ : typ;
+  field_pos : int;
   (* on pourra ajouter plus tard ici la position du champ dans la structure *)
 }
 

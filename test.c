@@ -1,7 +1,15 @@
-int fact(int n)
+struct coucou
 {
-  return n;
-}
+  int a;
+  struct coucou *b;
+  int c;
+  struct coucou *d;
+  int e;
+  struct coucou *f;
+  int g;
+  struct coucou *h;
+};
+
 int main()
 {
   return fact(42);

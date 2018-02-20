@@ -129,6 +129,10 @@ and rtl_funcall fun_ident expr_arglist locals destl dest_register =
      @param formal_reglist register
      @finalDest_lb where to give control after all caluclations
   *)
+  let rec create_reglist n = 
+    if n==0 then []
+    else Register.fresh() :: create_reglist (n-1)
+  in
   let rec parse_formals expr_list formal_reglist finalDest_lb = match expr_list, formal_reglist with
     | expr::expRemain, form::formRemain -> 
       let next_lb = parse_formals expRemain formRemain finalDest_lb in
@@ -136,10 +140,16 @@ and rtl_funcall fun_ident expr_arglist locals destl dest_register =
     | [],[] -> finalDest_lb
     | _,_ -> raise (Error "invalid arg length in function call")
   in
-  let fun_descr = if Hashtbl.mem function_table fun_ident then  Hashtbl.find function_table fun_ident 
-    else raise (Error ("RTL : undefined function "^fun_ident))
+  let get_fun_infos fun_ident = match fun_ident with
+    | "putchar" -> ("putchar", 1)
+    | "sbrk" -> ("sbrk", 1)
+    | name when Hashtbl.mem function_table name -> 
+      let fun_descr = Hashtbl.find function_table name in
+      (name, List.length fun_descr.fun_formals)
+    | _ -> raise (Error ("RTL : undefined function "^fun_ident))
   in
-  let arg_reglist = List.map (fun a-> Register.fresh()) fun_descr.fun_formals in
+  let (f_name, f_argLength) = get_fun_infos fun_ident in
+  let arg_reglist = create_reglist f_argLength in
   let fun_lb = generate (Ecall (dest_register, fun_ident, arg_reglist, destl)) in
   let start_lb = parse_formals expr_arglist arg_reglist fun_lb in
   start_lb
@@ -175,6 +185,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
       |Not_found -> raise (Error ("Variable not found " ^ var_ident))
     end
   | Ttree.Ecall (fun_ident, expr_list) -> rtl_funcall fun_ident expr_list locals destl dest_register
+  (* | Ttree.Esizeof (structure) -> structure. *)
   | _ -> raise (Error "expression not supported")
 (* | Eaccess_field of expr * field
    | Eassign_local of ident * expr
@@ -184,7 +195,15 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
    | Ecall of ident * expr list
    | Esizeof of structure *)
 
-
+(** 
+   translation of  a stmt
+   @param stmt the statement
+   @param locals map of accessibles locals
+   @param locals_accumulate not modified
+   @param dest_lb label of next instruction
+   @param return_reg register for result
+   @param exit_lb used for return instruction - to leave function body
+*)
 and rtl_stmt stmt locals locals_accumulate dest_lb return_reg exit_lb =
   match stmt with
   (* decided to explicitly force a move *)
@@ -255,12 +274,12 @@ let rtl_fun fn =
   (* create partial entry to allow recursive calls *)
   let partial_fun_descr = 
     {fun_name = fn.Ttree.fun_name;
-    fun_formals = formals_reg;
-    fun_result = result;
-    fun_locals = Register.set_of_list ([]);
-    fun_entry = Label.fresh();
-    fun_exit = exit;
-    fun_body = !graph ;} in
+     fun_formals = formals_reg;
+     fun_result = result;
+     fun_locals = Register.set_of_list ([]);
+     fun_entry = Label.fresh();
+     fun_exit = exit;
+     fun_body = !graph ;} in
   Hashtbl.add function_table partial_fun_descr.fun_name partial_fun_descr;
 
   (* translate body *)
@@ -284,10 +303,8 @@ let rtl_fun fn =
 
 let rec rtl_funlist fun_list = 
   List.map (fun fn -> rtl_fun fn) fun_list
-  (* | fn::remain -> rtl_fun fn :: rtl_funlist remain *)
-  (* | [] -> [] *)
-
-
+(* | fn::remain -> rtl_fun fn :: rtl_funlist remain *)
+(* | [] -> [] *)
 
 let program p =
   {

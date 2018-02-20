@@ -18,7 +18,7 @@ mini-c:
 doc: *.ml* cleandoc
 	# ocamlbuild main.docdir/index.html
 	# ocamldoc -html *.ml* -d doc -I _build
-	ocamldoc -html *.ml* -d doc -I _build -inv-merge-ml-mli -verbose -m A
+	ocamldoc -html *.ml* -d doc -I _build -inv-merge-ml-mli -verbose -m A -charset utf-8
 
 .PHONY: clean cleandoc tests
 
