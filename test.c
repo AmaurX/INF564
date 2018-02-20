@@ -11,6 +11,7 @@ int main()
   int q;
   {
     q;
+    sbrk(13);
   }
   return truc(1, 2);
 }
