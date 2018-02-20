@@ -71,7 +71,7 @@ let () =
 	exit 1
     | Typing.Error s->
 	eprintf "typing error: %s@." s;
-	exit 1
+  exit 1
     | e ->
         let bt = Printexc.get_backtrace () in
         eprintf "anomaly: %s\n@." (Printexc.to_string e);
