@@ -8,6 +8,7 @@ open Rtltree
 exception Error of string
 
 let graph = ref Label.M.empty
+let function_table = Hashtbl.create 16
 
 let generate i =
   let l = Label.fresh () in
@@ -24,9 +25,9 @@ let generate i =
    @param dest_register Register to store the result of the expression (unused ?)
 *)
 let rec rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb dest_reg exit_lb =
-  let test_reg = Register.fresh() in 
-  let if_lb = rtl_stmt if_stmt locals locals_accumulate dest_lb dest_reg exit_lb in 
-  let else_lb = rtl_stmt else_stmt locals locals_accumulate dest_lb dest_reg exit_lb in 
+  let test_reg = Register.fresh() in
+  let if_lb   = rtl_stmt if_stmt   locals locals_accumulate dest_lb dest_reg exit_lb in
+  let else_lb = rtl_stmt else_stmt locals locals_accumulate dest_lb dest_reg exit_lb in
   let test_lb = generate (Emubranch (Ops.Mjnz, test_reg, if_lb, else_lb)) in
   rtl_expr expr locals test_lb test_reg
 
@@ -38,9 +39,9 @@ let rec rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb dest_reg 
    @param locals map of local fields
    @param destl Label of the next instruction (after the end of loop)
    @param dest_register Register to store the result of the expression (unused ?)
-   @param exit_lb Label used in case we meet a return 
+   @param exit_lb Label used in case we meet a return
 *)
-and rtl_while expr stmt locals locals_accumulate dest_lb dest_reg exit_lb = 
+and rtl_while expr stmt locals locals_accumulate dest_lb dest_reg exit_lb =
   let test_reg = Register.fresh() in
   let test_lb = Label.fresh () in
   let block_lb = rtl_stmt stmt locals locals_accumulate test_lb dest_reg exit_lb in
@@ -50,16 +51,16 @@ and rtl_while expr stmt locals locals_accumulate dest_lb dest_reg exit_lb =
 
 
 (**
-   RTL translation for binary operators 
+   RTL translation for binary operators
    @param unop the unary operator
    @param expr expression to give to the operator
    @param locals map of local fields
    @param destl Label of the next instruction
    @param dest_register Register to store the result of the expression
-   @param exit_lb Label used in case we meet a return 
+   @param exit_lb Label used in case we meet a return
 *)
-and rtl_unop unop expr locals destl dest_register = 
-  match unop with 
+and rtl_unop unop expr locals destl dest_register =
+  match unop with
   | Ptree.Uminus -> let expr_reg = Register.fresh() in
     (* dest = zero - dest *)
     let sub_lb = generate (Embinop (Ops.Msub, expr_reg, dest_register, destl)) in
@@ -67,11 +68,11 @@ and rtl_unop unop expr locals destl dest_register =
     let loadZero_lb = generate(Econst (Int32.zero, dest_register, sub_lb)) in
     (* dest = compute(expr) *)
     rtl_expr expr locals loadZero_lb expr_reg
-  | Ptree.Unot -> 
+  | Ptree.Unot ->
     let not_lb = generate (Emunop ((Ops.Msetnei Int32.zero), dest_register, destl)) in
     rtl_expr expr locals not_lb dest_register
 (**
-   RTL translation for binary operators 
+   RTL translation for binary operators
    @param binop binay opeator
    @param e1 first expression (left side)
    @param e2 second expression (right side)
@@ -79,7 +80,7 @@ and rtl_unop unop expr locals destl dest_register =
    @param destl Label of the next instruction
    @param dest_register Register to store the result of the expression
 *)
-and rtl_binop binop e1 e2 locals destl dest_register = 
+and rtl_binop binop e1 e2 locals destl dest_register =
   (* match binop with
      | (Ptree.Badd | Ptree.Bdiv | Ptree.Bdiv | Ptree.Bsub) -> *)
   let translate_arith_binop binop = match binop with
@@ -108,14 +109,43 @@ and rtl_binop binop e1 e2 locals destl dest_register =
       translate_order_binop binop
     | _ -> raise( Error "binop not supported")
   in
-  let reg_e1 = Register.fresh() in 
+  let reg_e1 = Register.fresh() in
   (* let reg_e2 = Register.fresh() in  fait *)
   let next_instr = generate (Embinop (conv_binop, reg_e1, dest_register, destl)) in
   let lb_e2 = rtl_expr e2 locals next_instr dest_register in
   rtl_expr e1 locals lb_e2 reg_e1
 
+(**
+   Calls a function
+   @param fun_ident name of called function
+   @param expr_arglist list of expressions given as arguments
+   @param destl next instruction
+   @param dest_register return register
+*)
+and rtl_funcall fun_ident expr_arglist locals destl dest_register = 
+  (**
+     Compute and store each argument into the appropriate register
+     @param expr_list arguments
+     @param formal_reglist register
+     @finalDest_lb where to give control after all caluclations
+  *)
+  let rec parse_formals expr_list formal_reglist finalDest_lb = match expr_list, formal_reglist with
+    | expr::expRemain, form::formRemain -> 
+      let next_lb = parse_formals expRemain formRemain finalDest_lb in
+      rtl_expr expr locals next_lb form
+    | [],[] -> finalDest_lb
+    | _,_ -> raise (Error "invalid arg length in function call")
+  in
+  let fun_descr = if Hashtbl.mem function_table fun_ident then  Hashtbl.find function_table fun_ident 
+    else raise (Error ("RTL : undefined function "^fun_ident))
+  in
+  let arg_reglist = List.map (fun a-> Register.fresh()) fun_descr.fun_formals in
+  let fun_lb = generate (Ecall (dest_register, fun_ident, arg_reglist, destl)) in
+  let start_lb = parse_formals expr_arglist arg_reglist fun_lb in
+  start_lb
 
-(** 
+
+(**
    RTL translation of a generic expression
    @param binop binay opeator
    @param expr expression to translate
@@ -125,17 +155,26 @@ and rtl_binop binop e1 e2 locals destl dest_register =
 *)
 and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
   | Ttree.Econst i -> generate (Econst (i, dest_register, destl))
-  | Ttree.Ebinop (binop, e1, e2) ->  rtl_binop binop e1 e2 locals destl dest_register 
+  | Ttree.Ebinop (binop, e1, e2) ->  rtl_binop binop e1 e2 locals destl dest_register
   | Ttree.Eunop (unop, expr) ->  rtl_unop unop expr locals destl dest_register
-  | Ttree.Eaccess_local var_ident -> 
-    let var_reg = Hashtbl.find locals var_ident in 
-    generate (Embinop (Ops.Mmov, var_reg, dest_register, destl))
+  | Ttree.Eaccess_local var_ident ->
+    begin try
+        let var_reg = Hashtbl.find locals var_ident in
+        generate (Embinop (Ops.Mmov, var_reg, dest_register, destl))
+      with 
+      |Not_found -> raise (Error ("Variable not found " ^ var_ident))
+    end
   | Ttree.Eassign_local (var_ident, myexpr) -> 
-    let var_reg = Hashtbl.find locals var_ident in
-    let calc_reg = Register.fresh() in
-    let sideAssign_lb = generate (Embinop (Ops.Mmov, calc_reg, dest_register, destl)) in
-    let assign_lb = generate (Embinop (Ops.Mmov, calc_reg, var_reg, sideAssign_lb)) in
-    rtl_expr myexpr locals assign_lb calc_reg
+    begin try
+        let var_reg = Hashtbl.find locals var_ident in
+        let calc_reg = Register.fresh() in
+        let sideAssign_lb = generate (Embinop (Ops.Mmov, calc_reg, dest_register, destl)) in
+        let assign_lb = generate (Embinop (Ops.Mmov, calc_reg, var_reg, sideAssign_lb)) in
+        rtl_expr myexpr locals assign_lb calc_reg
+      with 
+      |Not_found -> raise (Error ("Variable not found " ^ var_ident))
+    end
+  | Ttree.Ecall (fun_ident, expr_list) -> rtl_funcall fun_ident expr_list locals destl dest_register
   | _ -> raise (Error "expression not supported")
 (* | Eaccess_field of expr * field
    | Eassign_local of ident * expr
@@ -146,69 +185,111 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
    | Esizeof of structure *)
 
 
-and rtl_stmt stmt locals locals_accumulate dest_lb return_reg exit_lb = 
-  match stmt with 
-  | Ttree.Sreturn expr -> rtl_expr expr locals exit_lb return_reg
+and rtl_stmt stmt locals locals_accumulate dest_lb return_reg exit_lb =
+  match stmt with
+  (* decided to explicitly force a move *)
+  (* | Ttree.Sreturn expr -> rtl_expr expr locals exit_lb return_reg *)
+  | Ttree.Sreturn expr -> 
+    let result_reg = Register.fresh () in
+    let ret_lb = generate (Embinop (Ops.Mmov, result_reg, return_reg, exit_lb)) in
+    rtl_expr expr locals ret_lb result_reg
   | Ttree.Sexpr expr -> let result_reg = Register.fresh() in rtl_expr expr locals dest_lb result_reg
   | Ttree.Sif (expr, if_stmt, else_stmt) -> rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb return_reg exit_lb
   | Ttree.Sskip -> generate (Egoto dest_lb)
   | Ttree.Sblock block -> rtl_body block locals locals_accumulate dest_lb return_reg exit_lb
   | Ttree.Swhile (expr, stmt) -> rtl_while expr stmt locals locals_accumulate dest_lb return_reg exit_lb
-  | _ -> raise (Error "statement not supported")
+(* | _ -> raise (Error "statement not supported") *)
 
 
 
-and rtl_stmt_list stmtlist locals locals_accumulate destl (result:Register.t) exit_lb = 
+and rtl_stmt_list stmtlist locals locals_accumulate destl (result:Register.t) exit_lb =
   match stmtlist with
   | stmt::[] -> let stmtlabel = rtl_stmt stmt locals locals_accumulate destl result exit_lb in stmtlabel
   | stmt::remain -> let stmtlabel = rtl_stmt stmt locals locals_accumulate destl result exit_lb in rtl_stmt_list remain locals locals_accumulate stmtlabel result exit_lb
   | [] -> raise (Error "body vide")
 
-
-and rtl_body body locals locals_accumulate dest_lb (result:Register.t) exit_lb = 
+(**
+   Block translation
+   @param body block to translate
+   @param locals map of internal variables (empty if main block of function)
+   @param locals_accumulate the same, except it doesn't get cleaned up after block translation -> used for later
+   @param dest_lb where to go after the last instruction of the block
+   @param result register where to store result values (for returns)
+   @param exit_lb in case of return where to go
+*)
+and rtl_body body locals locals_accumulate dest_lb (result:Register.t) exit_lb =
   let (varlist, stmtlist) = body in
-  let rec fill_locals = function 
-    | var::remain -> 
-      Hashtbl.add locals (snd var) (Register.fresh()); 
-      Hashtbl.add locals_accumulate (snd var) (Register.fresh()); 
+  let rec fill_locals = function
+    | var::remain ->
+      let reg = Register.fresh () in
+      Hashtbl.add locals (snd var) (reg);
+      Hashtbl.add locals_accumulate (snd var) (reg);
       fill_locals remain
     | [] -> ()
   in
-  let rec unfill_locals = function 
+  let rec unfill_locals = function
     | var::remain -> Hashtbl.remove locals (snd var); unfill_locals remain
     | [] -> ()
   in
   fill_locals varlist;
   let reversed_stmtlist = List.rev stmtlist in
-  let body_lb = rtl_stmt_list reversed_stmtlist locals locals_accumulate exit_lb result exit_lb in
+  let body_lb = rtl_stmt_list reversed_stmtlist locals locals_accumulate dest_lb result exit_lb in
   unfill_locals varlist;
   body_lb
 
-let rtl_fun fn = 
-  let extract_values table = 
+let rtl_fun fn =
+  let extract_values table =
     Hashtbl.fold (fun key value val_list -> val_list@[value]) table []
   in
-  let exit = Label.fresh() in 
+  let add_formal locals locals2 (var_t, var_ident) = 
+    let reg = Register.fresh() in
+    Hashtbl.add locals var_ident reg;
+    Hashtbl.add locals2 var_ident reg;
+    reg
+  in
+  let exit = Label.fresh() in
   let result = Register.fresh() in
   let locals = Hashtbl.create 16 in
   let locals_accumulate = Hashtbl.create 16 in
+  let formals_reg = List.map (add_formal locals locals_accumulate) fn.Ttree.fun_formals in
+  (* create partial entry to allow recursive calls *)
+  let partial_fun_descr = 
+    {fun_name = fn.Ttree.fun_name;
+    fun_formals = formals_reg;
+    fun_result = result;
+    fun_locals = Register.set_of_list ([]);
+    fun_entry = Label.fresh();
+    fun_exit = exit;
+    fun_body = !graph ;} in
+  Hashtbl.add function_table partial_fun_descr.fun_name partial_fun_descr;
+
+  (* translate body *)
   let entry = rtl_body fn.Ttree.fun_body locals locals_accumulate exit result exit in
-  {fun_name = fn.Ttree.fun_name;
-   fun_formals = [];
-   fun_result = result;
-   fun_locals = Register.set_of_list (extract_values locals_accumulate);
-   fun_entry = entry;
-   fun_exit = exit;
-   fun_body = !graph ;}
+
+  (* final entry *)
+  let fun_descr = 
+    {fun_name = fn.Ttree.fun_name;
+     fun_formals = formals_reg;
+     fun_result = result;
+     (* new *)
+     fun_locals = Register.set_of_list (extract_values locals_accumulate);
+     (* new *)
+     fun_entry = entry;
+     fun_exit = exit;
+     fun_body = !graph ;}
+  in 
+  Hashtbl.replace function_table fun_descr.fun_name fun_descr;
+  fun_descr
 
 
-let rec rtl_funlist = function
-  | fn::remain -> rtl_fun fn :: rtl_funlist remain
-  | [] -> []
+let rec rtl_funlist fun_list = 
+  List.map (fun fn -> rtl_fun fn) fun_list
+  (* | fn::remain -> rtl_fun fn :: rtl_funlist remain *)
+  (* | [] -> [] *)
 
 
 
-let program p = 
+let program p =
   {
     funs = rtl_funlist p
   }
