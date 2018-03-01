@@ -5,6 +5,17 @@ exception Error of string
 
 let graph = ref Label.M.empty
 
+type live_info = {
+         instr: Ertltree.instr;
+          succ: Label.t list;    (* successeurs *)
+  mutable pred: Label.set;       (* prédécesseurs *)
+          defs: Register.set;    (* définitions *)
+          uses: Register.set;    (* utilisations *)
+  mutable  ins: Register.set;    (* variables vivantes en entrée *)
+  mutable outs: Register.set;    (* variables vivantes en sortie *)
+}
+
+
 let generate i =
   let l = Label.fresh () in
   graph := Label.M.add l i !graph;
@@ -122,3 +133,33 @@ let rec ertl_funlist = function
 let program p = {
   funs = ertl_funlist p.Rtltree.funs;
 }
+
+
+let livelinessHashtbl = Hashtbl.create 16
+
+let create_live_info mylabel myinstr = 
+  let successeurs = Ertltree.succ myinstr in
+  let defs, uses = Ertltree.def_use myinstr in
+  let my_live_info = {
+    instr = myinstr;
+    succ = successeurs;    (* successeurs *)
+    pred = Label.S.empty;       (* prédécesseurs *)
+    defs = Register.set_of_list defs;    (* définitions *)
+    uses = Register.set_of_list uses;    (* utilisations *)
+    ins = Register.S.empty;    (* variables vivantes en entrée *)
+    outs = Register.S.empty;    (* variables vivantes en sortie *)
+  } in
+  Hashtbl.add livelinessHashtbl mylabel my_live_info
+
+let update_pred mylabel my_live_info =
+  let add_one_succ onesucc_lb = 
+    let one_succ = Hashtbl.find livelinessHashtbl onesucc_lb in
+    one_succ.pred <- Label.S.add mylabel one_succ.pred;
+  in
+  List.iter add_one_succ my_live_info.succ 
+
+
+let liveliness instrMap = 
+  Label.M.iter create_live_info instrMap;
+  Hashtbl.iter update_pred livelinessHashtbl
+
