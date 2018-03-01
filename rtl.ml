@@ -83,37 +83,64 @@ and rtl_unop unop expr locals destl dest_register =
 and rtl_binop binop e1 e2 locals destl dest_register =
   (* match binop with
      | (Ptree.Badd | Ptree.Bdiv | Ptree.Bdiv | Ptree.Bsub) -> *)
-  let translate_arith_binop binop = match binop with
+  let translate_simple_binop binop = match binop with
     (* | Ptree.Beq-> Ops. *)
     | Ptree.Badd -> Ops.Madd
     | Ptree.Bdiv -> Ops.Mdiv
     | Ptree.Bsub -> Ops.Msub
     | Ptree.Bmul -> Ops.Mmul
-    | _ -> raise (Error ("non-arith binop given to translate_artih_binop"))
-  in
-  let translate_order_binop = function
     | Ptree.Bge -> Ops.Msetge
     | Ptree.Bgt -> Ops.Msetg
     | Ptree.Ble -> Ops.Msetle
     | Ptree.Blt -> Ops.Msetl
     | Ptree.Beq -> Ops.Msete
     | Ptree.Bneq -> Ops.Msetne
-    | _ -> raise (Error ("non-ordering binop given to translate_order_binop"))
+    | _ -> raise (Error ("non-simple binop given to translate_simple_binop"))
   in
 
-  let conv_binop = match binop with
-    (* simple arithmetical binops *)
-    | (Ptree.Badd | Ptree.Bdiv | Ptree.Bmul | Ptree.Bsub) ->
-      translate_arith_binop binop
-    | (Ptree.Beq | Ptree.Bneq | Ptree.Bge | Ptree.Bgt | Ptree.Ble | Ptree.Blt) ->
-      translate_order_binop binop
-    | _ -> raise( Error "binop not supported")
-  in
-  let reg_e1 = Register.fresh() in
-  (* let reg_e2 = Register.fresh() in  fait *)
-  let next_instr = generate (Embinop (conv_binop, reg_e1, dest_register, destl)) in
-  let lb_e2 = rtl_expr e2 locals next_instr dest_register in
-  rtl_expr e1 locals lb_e2 reg_e1
+  match binop with
+  (* simple arithmetical  and ordering binops *)
+  | (Ptree.Badd | Ptree.Bdiv | Ptree.Bmul | Ptree.Bsub)
+  | (Ptree.Beq | Ptree.Bneq | Ptree.Bge | Ptree.Bgt | Ptree.Ble | Ptree.Blt) ->
+    let conv_binop = translate_simple_binop binop in
+    let reg_e1 = Register.fresh() in
+    (* let reg_e2 = Register.fresh() in  fait *)
+    let next_instr = generate (Embinop (conv_binop, reg_e1, dest_register, destl)) in
+    let lb_e2 = rtl_expr e2 locals next_instr dest_register in
+    rtl_expr e1 locals lb_e2 reg_e1
+  | (Ptree.Band) ->
+    let reg_e1 = Register.fresh () in
+    let reg_e2 = Register.fresh () in
+    (* return e2 *)
+    let copy_e2_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
+    (* e2 = (e2 != 0) *)
+    let test_e2_lb = generate (Emunop (Ops.Msetnei (Int32.zero), reg_e2, copy_e2_lb)) in
+    (* if e1 true, compute e2 *)
+    let calc_e2_lb = rtl_expr e2 locals test_e2_lb reg_e2 in
+    (* if e1 false, return 0 *)
+    let retFalse_lb = generate (Econst (Int32.zero, dest_register, destl)) in
+    (* test (e1!=0) and jump *)
+    let test_e1_lb = generate (Emubranch (Ops.Mjnz, reg_e1, calc_e2_lb, retFalse_lb)) in
+    (* compute e1 *)
+    let calc_e1_lb = rtl_expr e1 locals test_e1_lb reg_e1 in
+    calc_e1_lb
+  | (Ptree.Bor) ->
+    let reg_e1 = Register.fresh () in
+    let reg_e2 = Register.fresh () in
+    (* return e2 *)
+    let copy_e2_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
+    (* e2 = (e2 != 0) *)
+    let test_e2_lb = generate (Emunop (Ops.Msetnei (Int32.zero), reg_e2, copy_e2_lb)) in
+    (* if e1 false, compute e2 *)
+    let calc_e2_lb = rtl_expr e2 locals test_e2_lb reg_e2 in
+    (* if e1 true, return 1 *)
+    let retFalse_lb = generate (Econst (Int32.one, dest_register, destl)) in
+    (* test (e1==0) and jump *)
+    let test_e1_lb = generate (Emubranch (Ops.Mjz, reg_e1, calc_e2_lb, retFalse_lb)) in
+    (* compute e1 *)
+    let calc_e1_lb = rtl_expr e1 locals test_e1_lb reg_e1 in
+    calc_e1_lb
+  (* | _ -> raise( Error "binop not supported") *)
 
 (**
    Calls a function
@@ -157,6 +184,7 @@ and rtl_funcall fun_ident expr_arglist locals destl dest_register =
 
 (**
    RTL translation of a generic expression
+   a call to rtl expr is expected to generate all needed instructions -> no need to 'generate (rtl_expr ...)'
    @param binop binay opeator
    @param expr expression to translate
    @param locals map of local fields
@@ -174,6 +202,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
       with 
       |Not_found -> raise (Error ("Variable not found " ^ var_ident))
     end
+  (* | Eassign_local of ident * expr *)
   | Ttree.Eassign_local (var_ident, myexpr) -> 
     begin try
         let var_reg = Hashtbl.find locals var_ident in
@@ -184,16 +213,33 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
       with 
       |Not_found -> raise (Error ("Variable not found " ^ var_ident))
     end
+  (* | Ecall of ident * expr list *)
   | Ttree.Ecall (fun_ident, expr_list) -> rtl_funcall fun_ident expr_list locals destl dest_register
-  (* | Ttree.Esizeof (structure) -> structure. *)
-  | _ -> raise (Error "expression not supported")
-(* | Eaccess_field of expr * field
-   | Eassign_local of ident * expr
-   | Eassign_field of expr * field * expr
-   | Eunop of unop * expr (* fait *)
+  (* | Esizeof of structure *) 
+  | Ttree.Esizeof (structure) -> generate (Econst ((Int32.of_int structure.Ttree.str_totalSize), dest_register, destl))
+  (* | Eaccess_field of expr * field *)
+  | Ttree.Eaccess_field (structExpr, field) -> 
+    let offset = field.Ttree.field_pos in
+    let calc_reg = Register.fresh () in
+    let access_lb = generate (Eload (calc_reg, offset, dest_register, destl)) in
+    let calc_lb = rtl_expr structExpr locals access_lb calc_reg in
+    calc_lb
+  (* | Eassign_field of expr * field * expr *)
+  | Ttree.Eassign_field (structExpr, field, assignExpr) ->
+    let offset = field.Ttree.field_pos in
+    let struct_reg = Register.fresh () in
+    let assign_reg = Register.fresh () in
+    (* copy assigned value as return value *)
+    let return_lb = generate (Embinop (Ops.Mmov, assign_reg, dest_register, destl)) in
+    (* assign value to field *)
+    let access_lb = generate (Estore (assign_reg, struct_reg, offset, return_lb)) in
+    (* compute struct pointer *)
+    let calcStruct_lb = rtl_expr structExpr locals access_lb struct_reg in
+    (* compute assigned expression *)
+    let calcAssign_lb = rtl_expr assignExpr locals calcStruct_lb assign_reg in
+    calcAssign_lb
+(* | _ -> raise (Error "expression not supported") *)
 
-   | Ecall of ident * expr list
-   | Esizeof of structure *)
 
 (** 
    translation of  a stmt
@@ -212,11 +258,16 @@ and rtl_stmt stmt locals locals_accumulate dest_lb return_reg exit_lb =
     let result_reg = Register.fresh () in
     let ret_lb = generate (Embinop (Ops.Mmov, result_reg, return_reg, exit_lb)) in
     rtl_expr expr locals ret_lb result_reg
-  | Ttree.Sexpr expr -> let result_reg = Register.fresh() in rtl_expr expr locals dest_lb result_reg
-  | Ttree.Sif (expr, if_stmt, else_stmt) -> rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb return_reg exit_lb
-  | Ttree.Sskip -> generate (Egoto dest_lb)
-  | Ttree.Sblock block -> rtl_body block locals locals_accumulate dest_lb return_reg exit_lb
-  | Ttree.Swhile (expr, stmt) -> rtl_while expr stmt locals locals_accumulate dest_lb return_reg exit_lb
+  | Ttree.Sexpr expr -> 
+    let result_reg = Register.fresh() in rtl_expr expr locals dest_lb result_reg
+  | Ttree.Sif (expr, if_stmt, else_stmt) -> 
+    rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb return_reg exit_lb
+  | Ttree.Sskip -> 
+    generate (Egoto dest_lb)
+  | Ttree.Sblock block -> 
+    rtl_body block locals locals_accumulate dest_lb return_reg exit_lb
+  | Ttree.Swhile (expr, stmt) -> 
+    rtl_while expr stmt locals locals_accumulate dest_lb return_reg exit_lb
 (* | _ -> raise (Error "statement not supported") *)
 
 

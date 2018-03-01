@@ -325,7 +325,7 @@ let rec type_stmt mystmt return_type =
       Swhile (tpd_expr, tpd_st)
     end
   | Ptree.Sskip -> Sskip
-  (* | _ -> raise (Error "Stmt to be implemented") *)
+(* | _ -> raise (Error "Stmt to be implemented") *)
 
 
 and type_stmtlist stmtlist return_type = match stmtlist with
@@ -410,7 +410,12 @@ let type_decl_struct ((identity, varlist) : Ptree.decl_struct) =
   if Hashtbl.mem struct_table identity.Ptree.id 
   then raise (Error ("Struct " ^ identity.Ptree.id ^ " is already declared"));
   let myfields = Hashtbl.create 16 in
-  Hashtbl.add struct_table identity.Ptree.id {str_name = identity.Ptree.id; str_fields = myfields};
+  let structu = {
+    str_name = identity.Ptree.id; 
+    str_fields = myfields;
+    str_totalSize = List.length varlist;
+  } in
+  Hashtbl.add struct_table identity.Ptree.id structu;
   varlist_to_hashtable varlist myfields
 (* let typed_struct = {str_name = identity.Ptree.id; str_fields = myfields} in *)
 (* Hashtbl.add struct_table identity.Ptree.id typed_struct *)

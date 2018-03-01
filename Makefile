@@ -22,7 +22,15 @@ doc: *.ml* cleandoc
 
 .PHONY: clean cleandoc tests
 
-tests: mini-c
+t_typing: mini-c
+	ln -sf mini-c tests/mini-c
+	cd tests && ./run -v2 ../mini-c
+
+t_rtl: mini-c
+	ln -sf mini-c tests/mini-c
+	cd tests && ./run -i ../mini-c
+
+t_ertl: mini-c
 	ln -sf mini-c tests/mini-c
 	cd tests && ./run -i ../mini-c
 

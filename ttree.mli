@@ -12,7 +12,7 @@ type typ =
 and structure = {
   str_name      : ident;
   str_fields    : (ident, field) Hashtbl.t;
-  (* str_totalSize : int; *)
+  str_totalSize : int;
   (* on pourra ajouter plus tard ici la taille totale de la structure *)
 }
 

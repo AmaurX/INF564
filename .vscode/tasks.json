@@ -25,7 +25,7 @@
 		{
 			"label": "test",
 			"type": "shell",
-			"command": "make tests",
+			"command": "make t_rtl",
 			"group": {
 				"kind": "test",
 				"isDefault": true
