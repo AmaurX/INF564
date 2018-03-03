@@ -43,9 +43,21 @@ type deffun = {
   fun_body : cfg;
 }
 
+type live_info = {
+         instr: instr;
+          succ: Label.t list;    (* successeurs *)
+  mutable pred: Label.set;       (* prédécesseurs *)
+          defs: Register.set;    (* définitions *)
+          uses: Register.set;    (* utilisations *)
+  mutable  ins: Register.set;    (* variables vivantes en entrée *)
+  mutable outs: Register.set;    (* variables vivantes en sortie *)
+}
+
+
 (** Un programme ERTL. *)
 type file = {
   funs : deffun list;
+  liveness : live_info Label.map;
 }
 
 (** {2 Calcul des définitions et utilisations de chaque instruction} *)
@@ -148,29 +160,40 @@ let succ = function
   | Ereturn ->
       []
 
-let visit f g entry =
+let visit f g entry liveness =
   let visited = Hashtbl.create 97 in
   let rec visit l =
     if not (Hashtbl.mem visited l) then begin
       Hashtbl.add visited l ();
       let i = Label.M.find l g in
-      f l i;
+      let liveinfo = Label.M.find l liveness in
+      f l i liveinfo;
       List.iter visit (succ i)
     end
   in
   visit entry
 
-let print_graph fmt =
-  visit (fun l i -> fprintf fmt "%a: %a@\n" Label.print l print_instr i)
+  let print_set = Register.print_set
 
-let print_deffun fmt f =
+  let print_live_info fmt li =
+    fprintf fmt "d={%a}@ u={%a}@ i={%a}@ o={%a}"
+      print_set li.defs print_set li.uses print_set li.ins print_set li.outs
+
+let print_graph fmt =
+  visit (fun l i liveinfo -> fprintf fmt "%a: %a %a@ @\n" Label.print l print_instr i print_live_info liveinfo)
+  (* visit (fun li -> print_live_info fmt li) *)
+
+let print_deffun fmt liveness f =
   fprintf fmt "%s(%d)@\n" f.fun_name f.fun_formals;
   fprintf fmt "  @[";
   fprintf fmt "entry : %a@\n" Label.print f.fun_entry;
   fprintf fmt "locals: @[%a@]@\n" Register.print_set f.fun_locals;
-  print_graph fmt f.fun_body f.fun_entry;
+  print_graph fmt f.fun_body f.fun_entry liveness;
   fprintf fmt "@]@."
 
 let print_file fmt p =
   fprintf fmt "=== ERTL =================================================@\n";
-  List.iter (print_deffun fmt) p.funs
+  List.iter (print_deffun fmt p.liveness) p.funs 
+
+
+

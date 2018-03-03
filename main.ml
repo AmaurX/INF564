@@ -58,9 +58,6 @@ let () =
     if !interp_rtl then begin ignore (Rtlinterp.program p); exit 0 end;
     let p = Ertl.program p in
     if debug then Ertltree.print_file std_formatter p;
-    if !interp_ertl then begin ignore (Ertlinterp.program p); exit 0 end;
-    (* let p = Ertl.liveliness p in *)
-    (* if debug then Ertltree.print_file std_formatter p; *)
     (* ... *)
   with
     | Lexer.Lexical_error c ->
