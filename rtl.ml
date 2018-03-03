@@ -44,10 +44,11 @@ let rec rtl_if expr if_stmt else_stmt locals locals_accumulate dest_lb dest_reg 
 and rtl_while expr stmt locals locals_accumulate dest_lb dest_reg exit_lb =
   let test_reg = Register.fresh() in
   let test_lb = Label.fresh () in
-  let block_lb = rtl_stmt stmt locals locals_accumulate test_lb dest_reg exit_lb in
-  let test_instr = Emubranch (Ops.Mjnz, test_reg, block_lb, exit_lb) in
+  let eval_lb = rtl_expr expr locals test_lb test_reg in
+  let block_lb = rtl_stmt stmt locals locals_accumulate eval_lb dest_reg exit_lb in
+  let test_instr = Emubranch (Ops.Mjnz, test_reg, block_lb, dest_lb) in
   graph := Label.M.add test_lb test_instr !graph;
-  test_lb
+  eval_lb
 
 
 (**
@@ -104,10 +105,12 @@ and rtl_binop binop e1 e2 locals destl dest_register =
   | (Ptree.Beq | Ptree.Bneq | Ptree.Bge | Ptree.Bgt | Ptree.Ble | Ptree.Blt) ->
     let conv_binop = translate_simple_binop binop in
     let reg_e1 = Register.fresh() in
-    (* let reg_e2 = Register.fresh() in  fait *)
-    let next_instr = generate (Embinop (conv_binop, reg_e1, dest_register, destl)) in
-    let lb_e2 = rtl_expr e2 locals next_instr dest_register in
+    let reg_e2 = Register.fresh() in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
+    let next_instr = generate (Embinop (conv_binop, reg_e2, reg_e1, copy_lb)) in
+    let lb_e2 = rtl_expr e2 locals next_instr reg_e2 in
     rtl_expr e1 locals lb_e2 reg_e1
+
   | (Ptree.Band) ->
     let reg_e1 = Register.fresh () in
     let reg_e2 = Register.fresh () in
@@ -124,6 +127,7 @@ and rtl_binop binop e1 e2 locals destl dest_register =
     (* compute e1 *)
     let calc_e1_lb = rtl_expr e1 locals test_e1_lb reg_e1 in
     calc_e1_lb
+
   | (Ptree.Bor) ->
     let reg_e1 = Register.fresh () in
     let reg_e2 = Register.fresh () in
