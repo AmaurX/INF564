@@ -73,13 +73,15 @@ and rtl_unop unop expr locals destl dest_register =
     let not_lb = generate (Emunop ((Ops.Msetei Int32.zero), dest_register, destl)) in
     rtl_expr expr locals not_lb dest_register
 (**
-   RTL translation for binary operators
-   @param binop binay opeator
-   @param e1 first expression (left side)
-   @param e2 second expression (right side)
-   @param locals map of local fields
-   @param destl Label of the next instruction
-   @param dest_register Register to store the result of the expression
+  RTL translation for binary operators
+
+  Simple binops are treated together, whereas && and || have a special treatement. 
+  @param binop binay operator
+  @param e1 first expression (left side)
+  @param e2 second expression (right side)
+  @param locals map of local fields
+  @param destl Label of the next instruction
+  @param dest_register Register to store the result of the expression
 *)
 and rtl_binop binop e1 e2 locals destl dest_register =
   (* match binop with
@@ -235,7 +237,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
     let assign_reg = Register.fresh () in
     (* copy assigned value as return value *)
     let return_lb = generate (Embinop (Ops.Mmov, assign_reg, dest_register, destl)) in
-    (* assign value to field *)
+    (* assign value to field  - offset is (index of field) * (size of a field = 8 bytes) *)
     let access_lb = generate (Estore (assign_reg, struct_reg, 8*offset, return_lb)) in
     (* compute struct pointer *)
     let calcStruct_lb = rtl_expr structExpr locals access_lb struct_reg in
@@ -275,7 +277,15 @@ and rtl_stmt stmt locals locals_accumulate dest_lb return_reg exit_lb =
 (* | _ -> raise (Error "statement not supported") *)
 
 
-
+(**
+   Statement list translation
+   @param stmtlist list of statements
+   @param locals map of internal variables (empty if main block of function)
+   @param locals_accumulate the same, except it doesn't get cleaned up after block translation -> used for later
+   @param dest_lb where to go after the last instruction of the block
+   @param result register where to store result values (for returns)
+   @param exit_lb in case of return where to go
+*)
 and rtl_stmt_list stmtlist locals locals_accumulate destl (result:Register.t) exit_lb =
   match stmtlist with
   | stmt::[] -> let stmtlabel = rtl_stmt stmt locals locals_accumulate destl result exit_lb in stmtlabel
@@ -311,6 +321,13 @@ and rtl_body body locals locals_accumulate dest_lb (result:Register.t) exit_lb =
   unfill_locals varlist;
   body_lb
 
+(**
+  Function translation
+
+  A function is a set of local variables & arguments, a list of statement, a return register. Everything is kept in a table in case of (possibly recursive) function calls inside.
+
+  @param fn the function built in typing
+*)
 let rtl_fun fn =
   let extract_values table =
     Hashtbl.fold (fun key value val_list -> val_list@[value]) table []
