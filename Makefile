@@ -27,12 +27,10 @@ t_typing: mini-c
 	cd tests && ./run -v2 ../mini-c
 
 t_rtl: mini-c
-	ln -sf mini-c tests/mini-c
-	cd tests && ./run -i ../mini-c
+	cd tests && ./run -i ../mini-c --interp-rtl
 
 t_ertl: mini-c
-	ln -sf mini-c tests/mini-c
-	cd tests && ./run -i ../mini-c
+	cd tests && ./run -i ../mini-c --interp-ertl
 
 cleanmini:
 	$(RM) tests/mini-c
