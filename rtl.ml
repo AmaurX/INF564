@@ -70,7 +70,7 @@ and rtl_unop unop expr locals destl dest_register =
     (* dest = compute(expr) *)
     rtl_expr expr locals loadZero_lb expr_reg
   | Ptree.Unot ->
-    let not_lb = generate (Emunop ((Ops.Msetnei Int32.zero), dest_register, destl)) in
+    let not_lb = generate (Emunop ((Ops.Msetei Int32.zero), dest_register, destl)) in
     rtl_expr expr locals not_lb dest_register
 (**
    RTL translation for binary operators
@@ -225,7 +225,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
   | Ttree.Eaccess_field (structExpr, field) -> 
     let offset = field.Ttree.field_pos in
     let calc_reg = Register.fresh () in
-    let access_lb = generate (Eload (calc_reg, offset, dest_register, destl)) in
+    let access_lb = generate (Eload (calc_reg, 8*offset, dest_register, destl)) in
     let calc_lb = rtl_expr structExpr locals access_lb calc_reg in
     calc_lb
   (* | Eassign_field of expr * field * expr *)
@@ -236,7 +236,7 @@ and rtl_expr expr locals destl dest_register= match expr.Ttree.expr_node with
     (* copy assigned value as return value *)
     let return_lb = generate (Embinop (Ops.Mmov, assign_reg, dest_register, destl)) in
     (* assign value to field *)
-    let access_lb = generate (Estore (assign_reg, struct_reg, offset, return_lb)) in
+    let access_lb = generate (Estore (assign_reg, struct_reg, 8*offset, return_lb)) in
     (* compute struct pointer *)
     let calcStruct_lb = rtl_expr structExpr locals access_lb struct_reg in
     (* compute assigned expression *)

@@ -413,7 +413,8 @@ let type_decl_struct ((identity, varlist) : Ptree.decl_struct) =
   let structu = {
     str_name = identity.Ptree.id; 
     str_fields = myfields;
-    str_totalSize = List.length varlist;
+    (* one int or pointer takes 8 bytes *)
+    str_totalSize = 8 * (List.length varlist);
   } in
   Hashtbl.add struct_table identity.Ptree.id structu;
   varlist_to_hashtable varlist myfields
