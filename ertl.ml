@@ -14,7 +14,7 @@ let generate i =
   l
 
 let treat_ecall (r, s, rList, l) =  
-  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int((List.length rList - 6) * 8 )) , Register.rsp, l)) else l
+  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int(((List.length rList) - 6) * 8 )) , Register.rsp, l)) else l
   in
   let labelcopy = generate (Embinop(Mmov, Register.result, r, lastLabel)) in
   let k = if List.length rList <= 6 then List.length rList else 6  in
@@ -30,8 +30,9 @@ let treat_ecall (r, s, rList, l) =
     | reg::remain -> let newLabel = generate (Epush_param (reg, label)) in fill_recursif remain (index+1) newLabel
     | [] -> label
       end
-  in let firstlabel = fill_recursif rList 0 labelCall in
-  let goto = Egoto firstlabel in goto 
+  in let secondLabel = fill_recursif rList 0 labelCall in
+  (* let firstlabel = if  List.length rList > 6 then generate (Emunop ( Maddi (Int32.of_int( - ((List.length rList) - 6) * 8 )) , Register.rsp, secondLabel)) else secondLabel in *)
+  let goto = Egoto secondLabel in goto 
     
 
 let treat_div (binop, r1, r2, l) = 
@@ -149,7 +150,6 @@ let ertl_fun fn =
   ertl_body fn.Rtltree.fun_body;
 
   (* entrée de la fonction*)
-  let myargList = S.elements fn.Rtltree.fun_locals in
   let rec get_args argList count label =
     if count < 6 then 
     begin match argList with 
@@ -158,11 +158,11 @@ let ertl_fun fn =
     end
   else 
     begin match argList with 
-    | reg::remain -> let newLabel = generate (Eget_param ((count - 6)*8, reg, label)) in get_args remain (count+1) newLabel
+    | reg::remain -> let newLabel = generate (Eget_param ((count - 6) * 8 + 16, reg, label)) in get_args remain (count+1) newLabel
     | [] -> label
     end
   in
-  let first_arg_label = get_args myargList 0 fn.Rtltree.fun_entry
+  let first_arg_label = get_args fn.Rtltree.fun_formals 0 fn.Rtltree.fun_entry
   in
   let savedRegisterHsh = Hashtbl.create 16 in
   let rec save_register registerList label = 
@@ -171,7 +171,7 @@ let ertl_fun fn =
                           in Hashtbl.add savedRegisterHsh registre  savedRegister;
                           let newLabel = generate (Embinop (Mmov, registre, savedRegister, label))
                           in save_register remain newLabel
-    | [] -> label
+    | [] -> label 
   in
   let first_calle_saved_lb = save_register Register.callee_saved first_arg_label in
   let alloc_lb = generate (Ealloc_frame first_calle_saved_lb) 

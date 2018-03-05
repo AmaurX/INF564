@@ -1,4 +1,3 @@
-
 (* Fichier principal du compilateur mini-c *)
 
 open Format
@@ -8,7 +7,7 @@ let () = Printexc.record_backtrace true
 
 let parse_only = ref false
 let type_only = ref false
-let interp_rtl = ref true
+let interp_rtl = ref false
 let interp_ertl = ref false
 let debug = ref false
 
@@ -56,9 +55,9 @@ let () =
     let p = Rtl.program p in
     if debug then Rtltree.print_file std_formatter p;
     if !interp_rtl then begin ignore (Rtlinterp.program p); exit 0 end;
-    (* let p = Ertl.program p in *)
-    (* if debug then Ertltree.print_file std_formatter p; *)
-    (* if !interp_ertl then begin ignore (Ertlinterp.program p); exit 0 end; *)
+    let p = Ertl.program p in
+    if debug then Ertltree.print_file std_formatter p;
+    if !interp_ertl then begin ignore (Ertlinterp.program p); exit 0 end;
     (* ... *)
   with
     | Lexer.Lexical_error c ->
