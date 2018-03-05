@@ -180,7 +180,7 @@ let visit f g entry liveness =
       print_set li.defs print_set li.uses print_set li.ins print_set li.outs
 
 let print_graph fmt =
-  visit (fun l i liveinfo -> fprintf fmt "%a: %a  @\n" Label.print l print_instr i)
+  visit (fun l i liveinfo -> fprintf fmt "%a: %a %a@ @\n" Label.print l print_instr i print_live_info liveinfo)
   (* visit (fun li -> print_live_info fmt li) *)
 
 let print_deffun fmt liveness f =
