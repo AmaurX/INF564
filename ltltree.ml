@@ -56,6 +56,10 @@ type file = {
 open Format
 open Pp
 
+
+
+ (* ======================
+    Utilities *)
 let operand fmt = function
   | Reg r     -> fprintf fmt "%a" Register.print r
   | Spilled n -> fprintf fmt "%d(%%rbp)" n
