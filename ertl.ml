@@ -57,7 +57,8 @@ let instr = function
   | _ -> raise (Error "Wrong type of instruction")
 
 let treat_instr_label l i =
-  graph := Label.M.add l (instr i) !graph
+  let i = instr i in 
+  graph := Label.M.add l i !graph
   
 
 
