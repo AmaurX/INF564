@@ -98,13 +98,13 @@ let update_pred mylabel my_live_info =
 let compute_outs live_info = 
   let add_ins_of_succ label =
     let this_succ = Hashtbl.find livenessHashtbl label in
-    !live_info.outs <- Register.S.union !live_info.outs this_succ.ins 
+    live_info.outs <- Register.S.union live_info.outs this_succ.ins 
   in
-  List.iter add_ins_of_succ !live_info.succ
+  List.iter add_ins_of_succ live_info.succ
 
 let compute_ins live_info = 
-  let diff = Register.S.diff !live_info.outs !live_info.defs in 
-  !live_info.ins <- Register.S.union !live_info.uses diff
+  let diff = Register.S.diff live_info.outs live_info.defs in 
+  live_info.ins <- Register.S.union live_info.uses diff
 
   
 let kildall livenesstbl = 
@@ -119,8 +119,8 @@ let kildall livenesstbl =
     remaining_labels.set <- Label.S.remove mylabel remaining_labels.set;
     let my_live_info = Hashtbl.find livenessHashtbl mylabel in
     let old_ins = my_live_info.ins in
-    compute_outs (ref my_live_info);
-    compute_ins (ref my_live_info);
+    compute_outs (my_live_info);
+    compute_ins (my_live_info);
     (* Maybe put my_live_info back into the hashtable i dont know... *)
     if not (Register.S.equal old_ins my_live_info.ins) 
     then remaining_labels.set <- Label.S.union my_live_info.pred remaining_labels.set;
