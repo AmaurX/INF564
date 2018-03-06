@@ -35,16 +35,85 @@ let print ig =
       Format.printf "%s: prefs=@[%a@] intfs=@[%a@]@." (r :> string)
         Register.print_set arcs.prefs Register.print_set arcs.intfs) ig
 
+
 (**
     This part is coloring the graph    
 *)
-let lets_color_the_graph interference_graph = 
-  let todo = Hashtbl.create 16 in
-  let fill_todo_hash register arcs = 
-    let potential_colors = Register.S.diff Register.allocatable arcs.intfs
-    in ()
+
+type todo_set_m = {mutable set : Register.set}
+
+(*WRONG ! TO DO*)
+let find_best_coloring todo potential_colors interference_graph =
+  let iter_best_coloring register potential_color found_one = 0
   in
-  Register.M.iter fill_todo_hash interference_graph.map
+  (false, Register.result) 
+
+
+let remove_color potential_colors_hashtbl colored_register chosen_color interference_graph = 
+  let arcs_from_register = Register.M.find colored_register interference_graph in
+  let rec remove_color_rec interfered_registers  =
+    if not (Register.S.is_empty interfered_registers) 
+    then
+      begin
+        let reg = Register.S.choose interfered_registers in
+        if not (Register.S.mem reg Register.allocatable) 
+        then 
+          begin
+            let new_interfered_registers = Register.S.remove reg interfered_registers in
+            let old_potential_colors = Hashtbl.find potential_colors_hashtbl reg  in
+            let new_potential_colors = Register.S.remove chosen_color old_potential_colors in 
+            Hashtbl.replace potential_colors_hashtbl reg new_potential_colors ;
+            remove_color_rec new_interfered_registers 
+          end
+        else
+          begin
+            let new_interfered_registers = Register.S.remove reg interfered_registers in
+            remove_color_rec new_interfered_registers  
+          end
+      end
+  in
+  remove_color_rec arcs_from_register.intfs
+
+let rec color_one interference_graph todo potential_colors_hashtbl color_map number_of_spill =
+  if not (Register.S.is_empty todo) then 
+    begin
+      let (coloring_is_possible, register_to_color) = find_best_coloring todo potential_colors_hashtbl interference_graph in
+      if coloring_is_possible then
+        begin
+          let new_color = Register.S.choose (Hashtbl.find potential_colors_hashtbl register_to_color ) in
+          let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) in
+          let new_todo = Register.S.remove register_to_color todo in
+          remove_color potential_colors_hashtbl register_to_color new_color interference_graph;
+          color_one interference_graph todo potential_colors_hashtbl color_map number_of_spill
+        end
+      else 
+        begin
+          (color_map, number_of_spill) (*WRONG!!!* TO DO : SPILL!*)
+        end
+    end
+  else
+    begin
+      (color_map, number_of_spill)
+    end
+
+
+let color interference_graph = 
+  let todo = {set = Register.S.empty} in
+  let fill_todo register arcs =
+    if not (Register.S.mem register Register.allocatable) then
+    todo.set <- Register.S.add register todo.set
+  in
+  Register.M.iter fill_todo interference_graph;
+  let potential_colors_hashtbl = Hashtbl.create 16 
+  in
+  let fill_potential_colors_hashtbl register arcs = 
+    let potential_colors = Register.S.diff Register.allocatable arcs.intfs
+    in Hashtbl.add potential_colors_hashtbl register potential_colors 
+  in
+  Register.M.iter fill_potential_colors_hashtbl interference_graph;
+  let empty_color_map = Register.M.empty in
+  let zero = 0 in
+  color_one interference_graph todo.set potential_colors_hashtbl empty_color_map zero
 
 
 
@@ -74,7 +143,7 @@ let iter_pref label live_info interference_graph =
   | _ -> ()
 
 let add_interfs reg1 reg2 interference_graph =
-  fprintf std_formatter "add interf %a %a @\n" Register.print reg1 Register.print reg2;
+  (* fprintf std_formatter "add interf %a %a @\n" Register.print reg1 Register.print reg2; *)
   if Register.M.mem reg1 interference_graph.map 
   then begin let arcR1 = Register.M.find reg1 interference_graph.map in
   arcR1.intfs <- Register.S.add reg2 arcR1.intfs;
@@ -106,7 +175,7 @@ Register.S.iter (fun reg_out -> check_outs reg_out (Register.S.choose live_info.
 
 
 let check_outs_mov reg_friend reg_out reg_def interference_graph= 
-  if reg_out <> reg_def & reg_out <> reg_friend then
+  if reg_out <> reg_def && reg_out <> reg_friend then
   add_interfs reg_out reg_def interference_graph
 
 
@@ -123,7 +192,7 @@ let iter_intfs label live_info interference_graph =
 
 
 
-let construct_color_graph live_info_map =
+let construct_interference_graph live_info_map =
   let interference_graph = {map = Register.M.empty} in
   Label.M.iter (fun label live_info -> iter_pref label live_info interference_graph) live_info_map;
   Label.M.iter (fun label live_info -> iter_intfs label live_info interference_graph) live_info_map;
@@ -208,10 +277,10 @@ let rec ltl_funlist colors (funlist:Ertltree.deffun list) = match funlist with
 
 
 let program p = 
-  let final_color_graph = construct_color_graph p.Ertltree.liveness in
-  (* print final_color_graph; *)
+  let final_interference_graph = construct_interference_graph p.Ertltree.liveness in
+  print final_interference_graph;
   let colors = Register.M.empty in
-  let funlist = ltl_funlist colors p.Ertltree.funs in
+  (* let funlist = ltl_funlist colors p.Ertltree.funs in *)
   {
-    funs = funlist;
+    funs = [];
   }
