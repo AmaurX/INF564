@@ -64,6 +64,7 @@ let () =
     let p = Ltl.program p in
     if debug then Ltltree.print_file std_formatter p;
     if !interp_ltl then begin ignore (Ltlinterp.program p); exit 0 end;
+    let () = Lin.program p in ()
     (* ... *)
   with
     | Lexer.Lexical_error c ->
