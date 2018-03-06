@@ -55,18 +55,18 @@ let lets_color_the_graph interference_graph =
 let add_friends reg1 reg2 interference_graph =
   if Register.M.mem reg1 interference_graph.map 
   then let arcR1 = Register.M.find reg1 interference_graph.map in
-  arcR1.prefs <- Register.S.add reg2 arcR1.prefs;
+    arcR1.prefs <- Register.S.add reg2 arcR1.prefs;
   else let prefs = Register.S.singleton reg2 in
-  let newarcR1 = {prefs = prefs; intfs = Register.S.empty} in
-  interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map;
-  
-  if Register.M.mem reg2 interference_graph.map 
-  then let arcR2 = Register.M.find reg2 interference_graph.map in
-  arcR2.prefs <- Register.S.add reg1 arcR2.prefs;
-  else let prefs = Register.S.singleton reg1 in
-  let newarcR2 = {prefs = prefs; intfs = Register.S.empty} in
-  interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
-   
+    let newarcR1 = {prefs = prefs; intfs = Register.S.empty} in
+    interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map;
+
+    if Register.M.mem reg2 interference_graph.map 
+    then let arcR2 = Register.M.find reg2 interference_graph.map in
+      arcR2.prefs <- Register.S.add reg1 arcR2.prefs;
+    else let prefs = Register.S.singleton reg1 in
+      let newarcR2 = {prefs = prefs; intfs = Register.S.empty} in
+      interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
+
 
 let iter_pref label live_info interference_graph = 
   match live_info.Ertltree.instr with
@@ -77,42 +77,42 @@ let add_interfs reg1 reg2 interference_graph =
   fprintf std_formatter "add interf %a %a @\n" Register.print reg1 Register.print reg2;
   if Register.M.mem reg1 interference_graph.map 
   then begin let arcR1 = Register.M.find reg1 interference_graph.map in
-  arcR1.intfs <- Register.S.add reg2 arcR1.intfs;
-     if Register.S.mem reg2 arcR1.prefs then arcR1.prefs <- Register.S.remove reg2 arcR1.prefs
-    end
+    arcR1.intfs <- Register.S.add reg2 arcR1.intfs;
+    if Register.S.mem reg2 arcR1.prefs then arcR1.prefs <- Register.S.remove reg2 arcR1.prefs
+  end
   else begin let intfs = Register.S.singleton reg2 in
-  let newarcR1 = {prefs = Register.S.empty; intfs = intfs} in
-  interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map
+    let newarcR1 = {prefs = Register.S.empty; intfs = intfs} in
+    interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map
   end ;
 
   if Register.M.mem reg2 interference_graph.map 
   then begin let arcR2 = Register.M.find reg2 interference_graph.map in
-  arcR2.intfs <- Register.S.add reg1 arcR2.intfs;
-     if Register.S.mem reg1 arcR2.prefs then arcR2.prefs <- Register.S.remove reg1 arcR2.prefs
-    end
+    arcR2.intfs <- Register.S.add reg1 arcR2.intfs;
+    if Register.S.mem reg1 arcR2.prefs then arcR2.prefs <- Register.S.remove reg1 arcR2.prefs
+  end
   else begin let intfs = Register.S.singleton reg1 in
-  let newarcR2 = {prefs = Register.S.empty; intfs = intfs} in
-  interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
+    let newarcR2 = {prefs = Register.S.empty; intfs = intfs} in
+    interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
   end
 
 let check_outs reg_out reg_def interference_graph= 
   if reg_out <> reg_def then
-  add_interfs reg_out reg_def interference_graph
+    add_interfs reg_out reg_def interference_graph
 
 
 let handle_interferences live_info interference_graph =
   if not (Register.S.is_empty live_info.Ertltree.defs) then
-Register.S.iter (fun reg_out -> check_outs reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
+    Register.S.iter (fun reg_out -> check_outs reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
 
 
 let check_outs_mov reg_friend reg_out reg_def interference_graph= 
   if reg_out <> reg_def & reg_out <> reg_friend then
-  add_interfs reg_out reg_def interference_graph
+    add_interfs reg_out reg_def interference_graph
 
 
 let handle_interferences_mov reg_friend live_info interference_graph = 
   if not (Register.S.is_empty live_info.Ertltree.defs) then
-Register.S.iter (fun reg_out -> check_outs_mov reg_friend reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
+    Register.S.iter (fun reg_out -> check_outs_mov reg_friend reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
 
 
 let iter_intfs label live_info interference_graph = 
@@ -137,9 +137,20 @@ let construct_color_graph live_info_map =
 let ltl_i_binop colors binop reg1 reg2 lb = 
   let op1 = lookup colors reg1 in
   let op2 = lookup colors reg2 in
-   
+
   match binop with
-  | Ops.Mmov -> Embinop(Ops.Mmov, op1, op2, lb)
+  | Ops.Mmov when op1 = op2 -> Egoto lb
+  | Ops.Mmov when not (col_is_hw colors op1)
+               && not (col_is_hw colors op2) ->
+    (* use one temp register *)
+    let tmp_reg = Register.tmp1 in
+    let mov2_lb = generate(Embinop (Ops.Mmov, op1, Reg(tmp_reg), lb)) in
+    Embinop (Ops.Mmov, Reg(tmp_reg), op2, mov2_lb)
+  | Ops.Mmov -> Embinop (Ops.Mmov, op1, op2, lb)
+  (* | Ops.Mmul when not (col_is_hw colors op2) -> *)
+  (* second must be in hw *)
+  
+
   | _ -> raise (Error "binop insupported")
 
 let ltl_i_load colors src_preg srcOffset dest_preg lb = 
@@ -147,7 +158,7 @@ let ltl_i_load colors src_preg srcOffset dest_preg lb =
   let src_op = lookup colors src_preg in
   let post_lb, dest_reg = match dest_op with
     | Reg (r) -> lb, r
-    | _ -> 
+    | Spilled (i) -> 
       let destOpS = Reg (Register.tmp1) in
       let postcopy_lb = generate (Embinop (Ops.Mmov, destOpS, dest_op, lb)) in
       (postcopy_lb, Register.tmp1)
@@ -156,10 +167,33 @@ let ltl_i_load colors src_preg srcOffset dest_preg lb =
     | Reg (r) -> 
       let load_instr = Eload(r, srcOffset, dest_reg, post_lb) in
       load_instr
-    | _ -> 
+    | Spilled (i) -> 
       let tmp_reg = Register.tmp2 in
       let src_op = Reg (tmp_reg) in
       let load_lb = generate(Eload(tmp_reg, srcOffset, dest_reg, post_lb)) in
+      let precopy_instr = Embinop (Ops.Mmov, src_op, src_op, load_lb) in
+      precopy_instr
+  in 
+  pre_instr
+
+let ltl_i_store colors src_preg dest_preg destOffset lb = 
+  let dest_op = lookup colors dest_preg in
+  let src_op = lookup colors src_preg in
+  let post_lb, dest_reg = match dest_op with
+    | Reg (r) -> lb, r
+    | Spilled (i) -> 
+      let destOpS = Reg (Register.tmp1) in
+      let postcopy_lb = generate (Embinop (Ops.Mmov, destOpS, dest_op, lb)) in
+      (postcopy_lb, Register.tmp1)
+  in
+  let pre_instr = match src_op with 
+    | Reg (r) -> 
+      let load_instr = Estore(r, dest_reg, destOffset, post_lb) in
+      load_instr
+    | Spilled (i) -> 
+      let tmp_reg = Register.tmp2 in
+      let src_op = Reg (tmp_reg) in
+      let load_lb = generate(Estore(tmp_reg, dest_reg, destOffset, post_lb)) in
       let precopy_instr = Embinop (Ops.Mmov, src_op, src_op, load_lb) in
       precopy_instr
   in 
@@ -184,6 +218,11 @@ let ltl_instr colors myinstr = match myinstr with
     ltl_i_binop colors binop reg1 reg2 lb
   | Ertltree.Eload (srcReg, srcOffset, destReg, lb) -> 
     ltl_i_load colors srcReg srcOffset  destReg lb
+  | Ertltree.Estore (srcReg, destReg, destOffset, lb) ->
+    ltl_i_store colors srcReg destReg destOffset lb
+  | Ertltree.Epush_param (reg, lb) -> 
+    let op = lookup colors reg in
+    Epush (op, lb)
   | _ -> raise (Error "instruction not supported")
 
 let ltl_treat_instr_label colors label instr = 
