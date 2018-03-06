@@ -4,6 +4,7 @@ open Register
 open Format
 exception Error of string
 
+type color_graph_m = {mutable map : Ltltree.arcs Register.map;}
 
 let graph = ref Label.M.empty
 
@@ -27,6 +28,102 @@ let col_is_hw colors operand =
   | Reg (reg) -> true
   | Spilled (i) -> false
 
+let print ig =
+  Register.M.iter (fun r arcs ->
+      Format.printf "%s: prefs=@[%a@] intfs=@[%a@]@." (r :> string)
+        Register.print_set arcs.prefs Register.print_set arcs.intfs) ig
+
+
+let add_friends reg1 reg2 color_graph =
+  if Register.M.mem reg1 color_graph.map 
+  then let arcR1 = Register.M.find reg1 color_graph.map in
+    arcR1.prefs <- Register.S.add reg2 arcR1.prefs;
+  else let prefs = Register.S.singleton reg2 in
+    let newarcR1 = {prefs = prefs; intfs = Register.S.empty} in
+    color_graph.map <- Register.M.add reg1 newarcR1 color_graph.map;
+
+    if Register.M.mem reg2 color_graph.map 
+    then let arcR2 = Register.M.find reg2 color_graph.map in
+      arcR2.prefs <- Register.S.add reg1 arcR2.prefs;
+    else let prefs = Register.S.singleton reg1 in
+      let newarcR2 = {prefs = prefs; intfs = Register.S.empty} in
+      color_graph.map <- Register.M.add reg2 newarcR2 color_graph.map
+
+
+let iter_pref label live_info color_graph = 
+  match live_info.Ertltree.instr with
+  | Ertltree.Embinop (Mmov, reg1, reg2, l ) -> if reg1 <> reg2 then add_friends reg1 reg2 color_graph 
+  | _ -> ()
+
+let add_interfs reg1 reg2 color_graph =
+  fprintf std_formatter "add interf %a %a @\n" Register.print reg1 Register.print reg2;
+  if Register.M.mem reg1 color_graph.map 
+  then begin let arcR1 = Register.M.find reg1 color_graph.map in
+    arcR1.intfs <- Register.S.add reg2 arcR1.intfs;
+    if Register.S.mem reg2 arcR1.prefs then arcR1.prefs <- Register.S.remove reg2 arcR1.prefs
+  end
+  else begin let intfs = Register.S.singleton reg2 in
+    let newarcR1 = {prefs = Register.S.empty; intfs = intfs} in
+    color_graph.map <- Register.M.add reg1 newarcR1 color_graph.map
+  end ;
+
+  if Register.M.mem reg2 color_graph.map 
+  then begin let arcR2 = Register.M.find reg2 color_graph.map in
+    arcR2.intfs <- Register.S.add reg1 arcR2.intfs;
+    if Register.S.mem reg1 arcR2.prefs then arcR2.prefs <- Register.S.remove reg1 arcR2.prefs
+  end
+  else begin let intfs = Register.S.singleton reg1 in
+    let newarcR2 = {prefs = Register.S.empty; intfs = intfs} in
+    color_graph.map <- Register.M.add reg2 newarcR2 color_graph.map
+  end
+
+let check_outs reg_out reg_def color_graph= 
+  if reg_out <> reg_def then
+    add_interfs reg_out reg_def color_graph
+
+
+let handle_interferences live_info color_graph =
+  if not (Register.S.is_empty live_info.Ertltree.defs) then
+    Register.S.iter (fun reg_out -> check_outs reg_out (Register.S.choose live_info.Ertltree.defs) color_graph) live_info.Ertltree.outs
+
+
+let check_outs_mov reg_friend reg_out reg_def color_graph= 
+  if reg_out <> reg_def & reg_out <> reg_friend then
+    add_interfs reg_out reg_def color_graph
+
+
+let handle_interferences_mov reg_friend live_info color_graph = 
+  if not (Register.S.is_empty live_info.Ertltree.defs) then
+    Register.S.iter (fun reg_out -> check_outs_mov reg_friend reg_out (Register.S.choose live_info.Ertltree.defs) color_graph) live_info.Ertltree.outs
+
+
+let iter_intfs label live_info color_graph = 
+  match live_info.Ertltree.instr with
+  | Ertltree.Embinop (Mmov, reg1, reg2, l ) -> if reg1 <> reg2 then handle_interferences_mov reg1 live_info color_graph 
+  | _ -> handle_interferences live_info color_graph
+
+
+
+
+let construct_color_graph live_info_map =
+  let color_graph = {map = Register.M.empty} in
+  Label.M.iter (fun label live_info -> iter_pref label live_info color_graph) live_info_map;
+  Label.M.iter (fun label live_info -> iter_intfs label live_info color_graph) live_info_map;
+  color_graph.map 
+
+
+(* ================================================
+    1.3 LTL translation
+*)
+
+let ltl_i_binop colors binop reg1 reg2 lb = 
+  let op1 = lookup colors reg1 in
+  let op2 = lookup colors reg2 in
+   
+  match binop with
+  | Ops.Mmov -> Embinop(Ops.Mmov, op1, op2, lb)
+  | _ -> raise (Error "binop insupported")
+
 let ltl_i_load colors src_preg srcOffset dest_preg lb = 
   let dest_op = lookup colors dest_preg in
   let src_op = lookup colors src_preg in
@@ -49,11 +146,24 @@ let ltl_i_load colors src_preg srcOffset dest_preg lb =
       precopy_instr
   in 
   pre_instr
+
 let ltl_instr colors myinstr = match myinstr with 
   | Ertltree.Econst(n, reg, lb) -> Econst (n, lookup colors reg, lb)
   | Ertltree.Ereturn -> Ereturn
   | Ertltree.Egoto (lb)-> Egoto lb
   | Ertltree.Ecall (ident, nReg, lb) -> Ecall (ident, lb)
+  | Ertltree.Emunop (unop, reg, lb) -> 
+    let op = lookup colors reg in
+    Emunop (unop, op, lb) 
+  | Ertltree.Emubranch (branch, reg, lb1, lb2) ->
+    let op = lookup colors reg in
+    Emubranch (branch, op, lb1, lb2)
+  | Ertltree.Embbranch (branch, reg1, reg2, lb1, lb2) ->
+    let op1 = lookup colors reg1 in
+    let op2 = lookup colors reg2 in
+    Embbranch (branch, op1, op2, lb1, lb2)
+  | Ertltree.Embinop (binop, reg1, reg2, lb) ->
+    ltl_i_binop colors binop reg1 reg2 lb
   | Ertltree.Eload (srcReg, srcOffset, destReg, lb) -> 
     ltl_i_load colors srcReg srcOffset  destReg lb
   | _ -> raise (Error "instruction not supported")
@@ -78,7 +188,10 @@ let rec ltl_funlist colors (funlist:Ertltree.deffun list) = match funlist with
   | fn::remain -> ltl_fun colors fn :: ltl_funlist colors remain
   | [] -> []
 
+
 let program p = 
+  let final_color_graph = construct_color_graph p.Ertltree.liveness in
+  (* print final_color_graph; *)
   let colors = Register.M.empty in
   let funlist = ltl_funlist colors p.Ertltree.funs in
   {

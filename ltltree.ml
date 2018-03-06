@@ -10,6 +10,9 @@ type register = Register.t
 
 type label = Label.t
 
+type arcs = {mutable prefs: Register.set; mutable intfs: Register.set }
+type igraph = arcs Register.map
+
 (** une opérande est un registre physique (Reg) ou un emplacement
     de pile (Spilled) *)
 type operand =
