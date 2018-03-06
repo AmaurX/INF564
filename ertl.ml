@@ -43,7 +43,7 @@ let treat_div (binop, r1, r2, l) =
 
 
 let instr = function
-  | Rtltree.Econst (r, n, l) -> Econst (r, n, l)
+  | Rtltree.Econst (n, r, l) -> Econst (n, r, l)
   | Rtltree.Eload (r1, n, r2, l) -> Eload (r1, n, r2, l)
   | Rtltree.Estore (r1, r2, n, l) -> Estore (r1, r2, n, l)
   | Rtltree.Emunop  (m, r, l) -> Emunop (m, r, l)

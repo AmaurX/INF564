@@ -32,6 +32,10 @@ t_rtl: mini-c
 t_ertl: mini-c
 	cd tests && ./run -i "../mini-c --interp-ertl"
 
+t_ltl: mini-c
+	cd tests && ./run -i "../mini-c --interp-ltl"
+
+
 cleanmini:
 	$(RM) tests/mini-c
 	$(RM) mini-c
