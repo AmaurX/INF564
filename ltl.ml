@@ -180,6 +180,13 @@ let remove_color potential_colors_map colored_register chosen_color interference
   in
   remove_color_rec arcs_from_register.intfs potential_colors_map
 
+let change_pref interference_graph register_to_color new_color = 
+  let iter register arcs =
+    if Register.S.mem register_to_color arcs.prefs then 
+    arcs.prefs <- Register.S.add new_color (Register.S.remove register_to_color arcs.prefs) 
+  in
+  Register.M.iter iter interference_graph; interference_graph
+
 let rec color_one interference_graph todo potential_colors_map color_map number_of_spill =
   if not (Register.S.is_empty todo) then 
     begin
@@ -189,15 +196,19 @@ let rec color_one interference_graph todo potential_colors_map color_map number_
           (* fprintf std_formatter "Hello @\n"; *)
           fprintf std_formatter "Lets color %a with color %a @\n" Register.print register_to_color Register.print new_color;
           let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) color_map in
+          let new_interference_graph = change_pref interference_graph register_to_color new_color in
           let new_todo = Register.S.remove register_to_color todo in
           (* let new_potential_colors_map_1 = Register.M.remove register_to_color potential_colors_map in *)
-          let new_potential_colors_map = remove_color potential_colors_map register_to_color new_color interference_graph in
-          color_one interference_graph new_todo new_potential_colors_map new_color_map number_of_spill
+          let new_potential_colors_map = remove_color potential_colors_map register_to_color new_color new_interference_graph in
+          color_one new_interference_graph new_todo new_potential_colors_map new_color_map number_of_spill
         end
       else 
         begin
           fprintf std_formatter "Coucou @\n";
-          (color_map, number_of_spill) (*WRONG!!!* TO DO : SPILL!*)
+          let register_to_spill = Register.S.choose todo in
+          let new_color_map = Register.M.add register_to_spill (Ltltree.Spilled number_of_spill) color_map in
+          let new_todo = Register.S.remove register_to_spill todo in
+          color_one interference_graph new_todo potential_colors_map new_color_map (number_of_spill + 1)
         end
     end
   else
