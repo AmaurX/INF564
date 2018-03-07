@@ -30,28 +30,129 @@ let col_is_hw colors operand =
   | Reg (reg) -> true
   | Spilled (i) -> false
 
-let print ig =
+let print_graph ig =
   Register.M.iter (fun r arcs ->
       Format.printf "%s: prefs=@[%a@] intfs=@[%a@]@." (r :> string)
         Register.print_set arcs.prefs Register.print_set arcs.intfs) ig
 
+let print_color fmt = function
+  | Reg hr    -> fprintf fmt "%a" Register.print hr
+  | Spilled n -> fprintf fmt "stack %d" n
 
+let print_color_graph cm =
+  Register.M.iter
+  (fun r cr -> printf "%a -> %a@\n" Register.print r print_color cr) cm
 (**
     This part is coloring the graph    
 *)
 
 type todo_set_m = {mutable set : Register.set}
 
-(*WRONG ! TO DO*)
-let find_best_coloring todo potential_colors interference_graph =
-  let iter_best_coloring register potential_color found_one = 0
+let find_best_coloring_preference_four todo potential_colors_map interference_graph =
+  let is_of_preference_four register potential_colors = 
+  if Register.S.is_empty potential_colors then false 
+  else true 
+
   in
-  (false, Register.result) 
+  
+  let filtered_potential_colors_map = Register.M.filter is_of_preference_four potential_colors_map in
+  
+  if not (Register.M.is_empty filtered_potential_colors_map) 
+  then 
+    begin
+      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
+      (true, register_to_color, Register.S.choose potential_colors)
+    end
+  else
+    begin
+      (false, Register.fresh(), Register.fresh())
+    end
 
 
-let remove_color potential_colors_hashtbl colored_register chosen_color interference_graph = 
+let find_best_coloring_preference_three todo potential_colors_map interference_graph = 
+  let is_of_preference_three register potential_colors = 
+    if Register.S.is_empty potential_colors then begin false end 
+    else
+      begin
+        let arcs_of_reg = Register.M.find register interference_graph in
+        let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
+        if Register.S.is_empty preference_inter_potential then begin false end 
+        else begin true end
+      end 
+
+    in
+    
+    let filtered_potential_colors_map = Register.M.filter is_of_preference_three potential_colors_map in
+    
+    if not (Register.M.is_empty filtered_potential_colors_map) 
+    then 
+      begin
+        let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
+        let arcs_of_reg = Register.M.find register_to_color interference_graph in
+        let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
+        (true, register_to_color, Register.S.choose preference_inter_potential)
+      end
+    else
+      begin
+        find_best_coloring_preference_four todo potential_colors_map interference_graph
+      end
+    
+
+let find_best_coloring_preference_two todo potential_colors_map interference_graph = 
+  let is_of_preference_two register potential_colors = 
+  if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then  false 
+  else true
+  in
+  
+  let filtered_potential_colors_map = Register.M.filter is_of_preference_two potential_colors_map in
+  
+  if not (Register.M.is_empty filtered_potential_colors_map) 
+  then 
+    begin
+      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
+      (true, register_to_color, Register.S.choose potential_colors)
+    end
+  else
+    begin
+      find_best_coloring_preference_three todo potential_colors_map interference_graph
+    end
+
+
+let find_best_coloring_preference_one todo potential_colors_map interference_graph =
+  let filter_to_do register potential_colors = 
+    if Register.S.mem register todo then true else false
+  in
+  let potential_colors_map_todo = Register.M.filter filter_to_do potential_colors_map in
+
+  let is_of_preference_one register potential_colors = 
+  if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then begin false end
+  else 
+    begin
+      let only_potential_color = Register.S.choose potential_colors in
+      let arcs_of_reg = Register.M.find register interference_graph in
+      if Register.S.mem only_potential_color arcs_of_reg.prefs then begin true end
+      else begin false end
+    end 
+  in
+  
+  let filtered_potential_colors_map = Register.M.filter is_of_preference_one potential_colors_map_todo in
+  
+  if not (Register.M.is_empty filtered_potential_colors_map) 
+  then 
+    begin
+      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
+      (true, register_to_color, Register.S.choose potential_colors)
+    end
+  else
+    begin
+      find_best_coloring_preference_two todo potential_colors_map_todo interference_graph
+    end
+
+
+let remove_color potential_colors_map colored_register chosen_color interference_graph = 
+
   let arcs_from_register = Register.M.find colored_register interference_graph in
-  let rec remove_color_rec interfered_registers  =
+  let rec remove_color_rec interfered_registers potential_colors_map =
     if not (Register.S.is_empty interfered_registers) 
     then
       begin
@@ -59,35 +160,43 @@ let remove_color potential_colors_hashtbl colored_register chosen_color interfer
         if not (Register.S.mem reg Register.allocatable) 
         then 
           begin
+            (* fprintf std_formatter "hi! with reg %a  @\n" Register.print reg; *)
             let new_interfered_registers = Register.S.remove reg interfered_registers in
-            let old_potential_colors = Hashtbl.find potential_colors_hashtbl reg  in
+            let old_potential_colors = Register.M.find reg potential_colors_map in
             let new_potential_colors = Register.S.remove chosen_color old_potential_colors in 
-            Hashtbl.replace potential_colors_hashtbl reg new_potential_colors ;
-            remove_color_rec new_interfered_registers 
+            let new_potential_colors_map = Register.M.add  reg new_potential_colors potential_colors_map in
+            remove_color_rec new_interfered_registers new_potential_colors_map
           end
         else
           begin
             let new_interfered_registers = Register.S.remove reg interfered_registers in
-            remove_color_rec new_interfered_registers  
+            remove_color_rec new_interfered_registers potential_colors_map
           end
       end
+    else
+      begin
+        potential_colors_map
+      end
   in
-  remove_color_rec arcs_from_register.intfs
+  remove_color_rec arcs_from_register.intfs potential_colors_map
 
-let rec color_one interference_graph todo potential_colors_hashtbl color_map number_of_spill =
+let rec color_one interference_graph todo potential_colors_map color_map number_of_spill =
   if not (Register.S.is_empty todo) then 
     begin
-      let (coloring_is_possible, register_to_color) = find_best_coloring todo potential_colors_hashtbl interference_graph in
+      let (coloring_is_possible, register_to_color , new_color) = find_best_coloring_preference_one todo potential_colors_map interference_graph in
       if coloring_is_possible then
         begin
-          let new_color = Register.S.choose (Hashtbl.find potential_colors_hashtbl register_to_color ) in
-          let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) in
+          (* fprintf std_formatter "Hello @\n"; *)
+          fprintf std_formatter "Lets color %a with color %a @\n" Register.print register_to_color Register.print new_color;
+          let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) color_map in
           let new_todo = Register.S.remove register_to_color todo in
-          remove_color potential_colors_hashtbl register_to_color new_color interference_graph;
-          color_one interference_graph todo potential_colors_hashtbl color_map number_of_spill
+          (* let new_potential_colors_map_1 = Register.M.remove register_to_color potential_colors_map in *)
+          let new_potential_colors_map = remove_color potential_colors_map register_to_color new_color interference_graph in
+          color_one interference_graph new_todo new_potential_colors_map new_color_map number_of_spill
         end
       else 
         begin
+          fprintf std_formatter "Coucou @\n";
           (color_map, number_of_spill) (*WRONG!!!* TO DO : SPILL!*)
         end
     end
@@ -96,6 +205,7 @@ let rec color_one interference_graph todo potential_colors_hashtbl color_map num
       (color_map, number_of_spill)
     end
 
+type potential_colors_map_m = {mutable reg_map : Register.set Register.map}
 
 let color interference_graph = 
   let todo = {set = Register.S.empty} in
@@ -104,16 +214,16 @@ let color interference_graph =
     todo.set <- Register.S.add register todo.set
   in
   Register.M.iter fill_todo interference_graph;
-  let potential_colors_hashtbl = Hashtbl.create 16 
+  let potential_colors_map = {reg_map= Register.M.empty} 
   in
-  let fill_potential_colors_hashtbl register arcs = 
+  let fill_potential_colors_map register arcs = 
     let potential_colors = Register.S.diff Register.allocatable arcs.intfs
-    in Hashtbl.add potential_colors_hashtbl register potential_colors 
+    in potential_colors_map.reg_map <- Register.M.add register potential_colors potential_colors_map.reg_map 
   in
-  Register.M.iter fill_potential_colors_hashtbl interference_graph;
+  Register.M.iter fill_potential_colors_map interference_graph;
   let empty_color_map = Register.M.empty in
   let zero = 0 in
-  color_one interference_graph todo.set potential_colors_hashtbl empty_color_map zero
+  color_one interference_graph todo.set potential_colors_map.reg_map empty_color_map zero
 
 
 
@@ -317,8 +427,11 @@ let rec ltl_funlist colors (funlist:Ertltree.deffun list) = match funlist with
 
 let program p = 
   let final_interference_graph = construct_interference_graph p.Ertltree.liveness in
-  print final_interference_graph;
-  let colors = Register.M.empty in
+  print_graph final_interference_graph;
+  let (colors, spilledNumber) = color final_interference_graph in
+  print_color_graph colors;
+  fprintf std_formatter "%i" (Register.M.cardinal colors);
+  (* let colors = Register.M.empty in *)
   (* let funlist = ltl_funlist colors p.Ertltree.funs in *)
   {
     funs = [];
