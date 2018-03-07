@@ -1,5 +1,6 @@
 
-int main() {
+int main()
+{
   int c;
   c = 'A';
   putchar(c);

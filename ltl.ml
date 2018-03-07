@@ -194,7 +194,7 @@ let rec color_one interference_graph todo potential_colors_map color_map number_
       if coloring_is_possible then
         begin
           (* fprintf std_formatter "Hello @\n"; *)
-          fprintf std_formatter "Lets color %a with color %a @\n" Register.print register_to_color Register.print new_color;
+          (* fprintf std_formatter "Lets color %a with color %a @\n" Register.print register_to_color Register.print new_color; *)
           let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) color_map in
           let new_interference_graph = change_pref interference_graph register_to_color new_color in
           let new_todo = Register.S.remove register_to_color todo in
@@ -204,9 +204,9 @@ let rec color_one interference_graph todo potential_colors_map color_map number_
         end
       else 
         begin
-          fprintf std_formatter "Coucou @\n";
+          (* fprintf std_formatter "Coucou @\n"; *)
           let register_to_spill = Register.S.choose todo in
-          let new_color_map = Register.M.add register_to_spill (Ltltree.Spilled number_of_spill) color_map in
+          let new_color_map = Register.M.add register_to_spill (Ltltree.Spilled (- 8 - number_of_spill * 8)) color_map in
           let new_todo = Register.S.remove register_to_spill todo in
           color_one interference_graph new_todo potential_colors_map new_color_map (number_of_spill + 1)
         end
@@ -329,19 +329,26 @@ let ltl_i_binop colors binop reg1 reg2 lb =
   let op2 = lookup colors reg2 in
 
   match binop with
-  | Ops.Mmov when op1 = op2 -> Egoto lb
-  | Ops.Mmov when not (col_is_hw colors op1)
+  | Mmov when op1 = op2 -> Egoto lb
+  | Mmov when not (col_is_hw colors op1)
                && not (col_is_hw colors op2) ->
     (* use one temp register *)
     let tmp_reg = Register.tmp1 in
-    let mov2_lb = generate(Embinop (Ops.Mmov, op1, Reg(tmp_reg), lb)) in
-    Embinop (Ops.Mmov, Reg(tmp_reg), op2, mov2_lb)
-  | Ops.Mmov -> Embinop (Ops.Mmov, op1, op2, lb)
-  (* | Ops.Mmul when not (col_is_hw colors op2) -> *)
-  (* second must be in hw *)
-  
-
-  | _ -> raise (Error "binop insupported")
+    let mov2_lb = generate(Embinop (Mmov, Reg(tmp_reg), op2, lb)) in
+    Embinop (Mmov, op1 , Reg(tmp_reg), mov2_lb)
+  | Mmov -> Embinop (Mmov, op1, op2, lb)
+  | Mmul when not (col_is_hw colors op2) ->
+    let tmp_reg = Register.tmp1 in
+    let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg), op2, lb)) in
+    let mult_lb = generate (Embinop (Mmul, op2, Reg(tmp_reg), last_move_lb)) in
+    Embinop (Mmov, op2,  Reg(tmp_reg) , mult_lb)
+  | _ when not (col_is_hw colors op1)
+            && not (col_is_hw colors op2) ->
+    let tmp_reg = Register.tmp1 in
+    let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg) , op2 , lb)) in
+    let binop_lb = generate (Embinop (binop, op1, Reg(tmp_reg), last_move_lb)) in
+    Embinop (Mmov, op2 ,Reg(tmp_reg) , binop_lb)
+  | _ -> Embinop (binop, op1, op2, lb)
 
 let ltl_i_load colors src_preg srcOffset dest_preg lb = 
   let dest_op = lookup colors dest_preg in
@@ -389,7 +396,7 @@ let ltl_i_store colors src_preg dest_preg destOffset lb =
   in 
   pre_instr
 
-let ltl_instr colors myinstr = match myinstr with 
+let ltl_instr colors spilledNumber myinstr = match myinstr with 
   | Ertltree.Econst(n, reg, lb) -> Econst (n, lookup colors reg, lb)
   | Ertltree.Ereturn -> Ereturn
   | Ertltree.Egoto (lb)-> Egoto lb
@@ -413,17 +420,31 @@ let ltl_instr colors myinstr = match myinstr with
   | Ertltree.Epush_param (reg, lb) -> 
     let op = lookup colors reg in
     Epush (op, lb)
+  | Ertltree.Ealloc_frame (lb)->
+    let last_label = if spilledNumber <> 0 then generate (Emunop(Maddi (Int32.of_int(- 8 * spilledNumber)), Reg(Register.rsp), lb)) else lb in
+    let second_label = generate (Embinop(Mmov, Reg(Register.rsp), Reg(Register.rbp), last_label)) in
+    Epush (Reg (Register.rbp), second_label)
+  | Ertltree.Edelete_frame (lb) ->
+    let label = generate (Epop (Register.rbp, lb)) in
+    Embinop(Mmov, Reg(Register.rbp), Reg(Register.rsp), label)
+  | Ertltree.Eget_param (n, reg, lb) -> let op = lookup colors reg in
+    if not (col_is_hw colors op) then 
+    let tmp_reg = Register.tmp1 in
+    let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg), op, lb)) in
+    Embinop (Mmov, Spilled(n) , Reg(tmp_reg), last_move_lb)
+    else
+    Embinop(Mmov, Spilled(n), op , lb)
   | _ -> raise (Error "instruction not supported")
 
-let ltl_treat_instr_label colors label instr = 
-  let i = ltl_instr colors instr in
+let ltl_treat_instr_label colors spilledNumber label instr = 
+  let i = ltl_instr colors spilledNumber instr in
   graph := Label.M.add label i !graph
 
-let ltl_body colors body = 
-  Label.M.iter (ltl_treat_instr_label colors) body
+let ltl_body colors spilledNumber body = 
+  Label.M.iter (ltl_treat_instr_label colors spilledNumber) body
 
-let ltl_fun colors fn = 
-  let () = ltl_body colors fn.Ertltree.fun_body in
+let ltl_fun colors spilledNumber fn = 
+  let () = ltl_body colors spilledNumber fn.Ertltree.fun_body in
   {
     fun_name = fn.Ertltree.fun_name;
     fun_entry = fn.Ertltree.fun_entry;
@@ -431,8 +452,8 @@ let ltl_fun colors fn =
   }
 
 
-let rec ltl_funlist colors (funlist:Ertltree.deffun list) = match funlist with 
-  | fn::remain -> ltl_fun colors fn :: ltl_funlist colors remain
+let rec ltl_funlist colors spilledNumber (funlist:Ertltree.deffun list) = match funlist with 
+  | fn::remain -> ltl_fun colors spilledNumber fn :: ltl_funlist colors spilledNumber remain
   | [] -> []
 
 
@@ -441,9 +462,9 @@ let program p =
   print_graph final_interference_graph;
   let (colors, spilledNumber) = color final_interference_graph in
   print_color_graph colors;
-  fprintf std_formatter "%i" (Register.M.cardinal colors);
+  (* fprintf std_formatter "%i" (Register.M.cardinal colors); *)
   (* let colors = Register.M.empty in *)
-  (* let funlist = ltl_funlist colors p.Ertltree.funs in *)
+  let funlist = ltl_funlist colors spilledNumber p.Ertltree.funs in
   {
-    funs = [];
+    funs = funlist;
   }
