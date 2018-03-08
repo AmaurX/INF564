@@ -6,6 +6,10 @@ DOC_FILES=ptree.mli\
 test: main.native mini-c
 	./mini-c --debug test.c
 
+
+ltl: main.native mini-c
+	./mini-c --debug --interp-ltl test.c
+
 main.native: *.ml*
 	ocamlbuild $@
 
@@ -35,6 +39,8 @@ t_ertl: mini-c
 t_ltl: mini-c
 	cd tests && ./run -i "../mini-c --interp-ltl"
 
+t_final: mini-c
+	cd tests && ./run -3 ../mini-c
 
 cleanmini:
 	$(RM) tests/mini-c

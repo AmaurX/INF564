@@ -15,3 +15,5 @@ type set = S.t
 let print = Format.pp_print_string
 
 let of_string l = l
+
+let to_string lb = lb

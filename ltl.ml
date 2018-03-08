@@ -292,7 +292,8 @@ let check_outs reg_out reg_def interference_graph=
 
 let handle_interferences live_info interference_graph =
   if not (Register.S.is_empty live_info.Ertltree.defs) then
-    Register.S.iter (fun reg_out -> check_outs reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
+    Register.S.iter (fun reg_def -> Register.S.iter (fun reg_out -> check_outs reg_out reg_def interference_graph) live_info.Ertltree.outs) live_info.Ertltree.defs
+    
 
 
 let check_outs_mov reg_friend reg_out reg_def interference_graph= 
@@ -340,7 +341,7 @@ let ltl_i_binop colors binop reg1 reg2 lb =
   | Mmul when not (col_is_hw colors op2) ->
     let tmp_reg = Register.tmp1 in
     let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg), op2, lb)) in
-    let mult_lb = generate (Embinop (Mmul, op2, Reg(tmp_reg), last_move_lb)) in
+    let mult_lb = generate (Embinop (Mmul, op1, Reg(tmp_reg), last_move_lb)) in
     Embinop (Mmov, op2,  Reg(tmp_reg) , mult_lb)
   | _ when not (col_is_hw colors op1)
             && not (col_is_hw colors op2) ->
@@ -459,9 +460,9 @@ let rec ltl_funlist colors spilledNumber (funlist:Ertltree.deffun list) = match 
 
 let program p = 
   let final_interference_graph = construct_interference_graph p.Ertltree.liveness in
-  print_graph final_interference_graph;
+  (* print_graph final_interference_graph; *)
   let (colors, spilledNumber) = color final_interference_graph in
-  print_color_graph colors;
+  (* print_color_graph colors; *)
   (* fprintf std_formatter "%i" (Register.M.cardinal colors); *)
   (* let colors = Register.M.empty in *)
   let funlist = ltl_funlist colors spilledNumber p.Ertltree.funs in
