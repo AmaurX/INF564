@@ -66,7 +66,8 @@ let () =
     if !interp_ltl then begin ignore (Ltlinterp.program p); exit 0 end;
     let p = Lin.program p in
     if debug then X86_64.print_program std_formatter p;
-
+    let assemblyFile = (Filename.chop_extension !ifile) ^ ".s" in
+    X86_64.print_in_file assemblyFile p
 
     (* ... *)
   with
