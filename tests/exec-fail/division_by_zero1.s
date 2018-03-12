@@ -11,7 +11,7 @@ main:
 	movq %rax, %rdi
 	call putchar
 	movq %rax, %r10
-	movq -8(%rsp), %rax
+	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret

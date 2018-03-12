@@ -7,28 +7,28 @@ main:
 	movq $16, %rdi
 	call sbrk
 	movq %rax, %r10
-	movq %r10, -8(%rsp)
-	movq -8(%rsp), %r10
-	movq %r10, -16(%rsp)
+	movq %r10, -8(%rbp)
+	movq -8(%rbp), %r10
+	movq %r10, -16(%rbp)
 	movq $65, %r10
-	movq -16(%rsp), %r8
+	movq -16(%rbp), %r8
 	movq %r10, 0(%r8)
-	movq -8(%rsp), %r10
+	movq -8(%rbp), %r10
 	movq 0(%r10), %rdi
 	call putchar
 	movq %rax, %r10
-	movq -16(%rsp), %r10
+	movq -16(%rbp), %r10
 	movq 0(%r10), %rdi
 	call putchar
 	movq %rax, %r10
 	movq $66, %r10
-	movq -16(%rsp), %r8
+	movq -16(%rbp), %r8
 	movq %r10, 8(%r8)
-	movq -8(%rsp), %r10
+	movq -8(%rbp), %r10
 	movq 8(%r10), %rdi
 	call putchar
 	movq %rax, %r10
-	movq -16(%rsp), %r10
+	movq -16(%rbp), %r10
 	movq 8(%r10), %rdi
 	call putchar
 	movq %rax, %r10

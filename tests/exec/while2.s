@@ -5,9 +5,26 @@ main:
 	movq %rsp, %rbp
 	addq $-8, %rsp
 	movq $10, %r10
-	movq %r10, -8(%rsp)
-	movq -8(%rsp), %r10
+	movq %r10, -8(%rbp)
+L13:
+	movq -8(%rbp), %r10
 	movq $1, %r8
 	subq %r8, %r10
-	movq %r10, -8(%rsp)
+	movq %r10, -8(%rbp)
+	testq %r10, %r10
+	jnz L18
+	movq $10, %rdi
+	call putchar
+	movq %rax, %r10
+	movq $0, %rax
+	movq %rbp, %rsp
+	popq %rbp
+	ret
+L18:
+	movq $65, %rdi
+	movq -8(%rbp), %r10
+	addq %r10, %rdi
+	call putchar
+	movq %rax, %r10
+	jmp L13
 	.data

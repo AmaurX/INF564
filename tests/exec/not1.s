@@ -5,12 +5,14 @@ main:
 	movq %rsp, %rbp
 	movq $65, %rdi
 	movq $0, %r10
+	cmpq $0, %r10
 	sete %r10b
 	addq %r10, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $65, %rdi
 	movq $1, %r10
+	cmpq $0, %r10
 	sete %r10b
 	addq %r10, %rdi
 	call putchar

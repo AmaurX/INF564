@@ -26,6 +26,7 @@ let rax = "%rax"
 let rdi = "%rdi"
 let rdx = "%rdx"
 let rbp = "%rbp"
+let r11 = "%r11"
 
 let parameters =
   [ rdi; "%rsi"; rdx; "%rcx"; "%r8"; "%r9" ]
@@ -45,7 +46,7 @@ let rsp =
   "%rsp"
 
 let tmp1, tmp2 =
-  "%r15", "%r11"
+  "%r15", r11
 
 let is_hw r = r.[0] = '%'
 

@@ -55,14 +55,18 @@ main:
 	movq $113, %rdi
 	movq $1, %r10
 	movq $2, %r8
-	setl %r8b
+	cmpq %r8, %r10
+	setl %r11b
+	movzbq %r11b, %r10
 	addq %r10, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $108, %rdi
 	movq $2, %r10
 	movq $1, %r8
-	setl %r8b
+	cmpq %r8, %r10
+	setl %r11b
+	movzbq %r11b, %r10
 	addq %r10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -71,14 +75,18 @@ main:
 	movq $1, %r8
 	movq $1, %r9
 	addq %r9, %r8
-	sete %r8b
+	cmpq %r8, %r10
+	sete %r11b
+	movzbq %r11b, %r10
 	addq %r10, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $10, %rdi
 	movq $1, %r10
 	movq $2, %r8
-	sete %r8b
+	cmpq %r8, %r10
+	sete %r11b
+	movzbq %r11b, %r10
 	addq %r10, %rdi
 	call putchar
 	movq %rax, %r10

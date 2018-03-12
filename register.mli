@@ -34,6 +34,7 @@ val rdx: t
 val rdi: t
 val rbp: t
 val rsp: t
+val r11: t
   (** quelques registres particuliers *)
 
 val parameters  : t list
