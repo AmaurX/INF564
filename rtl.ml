@@ -106,6 +106,7 @@ and rtl_binop binop e1 e2 locals destl dest_register =
     | _ -> raise (Error ("A operation other than add, mul, div or sub was given to translate_operation_int32"))
   in
   match binop, e1.Ttree.expr_node, e2.Ttree.expr_node with 
+  (* In the first two cases, we have constant written directly in the code : Instead of forwarding the calculus to the run time, we make the calculus right here*)
   |(Ptree.Badd |  Ptree.Bmul | Ptree.Bsub), Ttree.Econst(i1), Ttree.Econst(i2) -> 
     let reg_e1 = Register.fresh() in
     let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
