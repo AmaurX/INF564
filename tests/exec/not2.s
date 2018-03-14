@@ -3,21 +3,18 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $0, %r10
-	movq %r10, %r8
-	movq $65, %rdi
-	movq %r8, %r10
-	cmpq $0, %r10
-	sete %r10b
-	addq %r10, %rdi
+	movq $0, %rdi
+	movq %rdi, %r10
+	cmpq $0, %rdi
+	sete %dil
+	addq $65, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $1, %r10
-	movq %r10, %r8
-	movq $65, %rdi
-	cmpq $0, %r8
-	sete %r8b
-	addq %r8, %rdi
+	movq $1, %rdi
+	movq %rdi, %r10
+	cmpq $0, %rdi
+	sete %dil
+	addq $65, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $10, %rdi

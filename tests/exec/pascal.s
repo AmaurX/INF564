@@ -97,7 +97,7 @@ L80:
 	setle %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L97
+	jnz L96
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -105,7 +105,7 @@ L80:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L97:
+L96:
 	movq -72(%rbp), %rdi
 	movq -88(%rbp), %rsi
 	call get
@@ -115,21 +115,20 @@ L97:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L88
+	jnz L87
 	movq $46, %rdi
 	call putchar
 	movq %rax, %r10
-L86:
+L85:
 	movq -88(%rbp), %r10
-	movq $1, %r8
-	addq %r8, %r10
+	incq %r10
 	movq %r10, -88(%rbp)
 	jmp L80
-L88:
+L87:
 	movq $42, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L86
+	jmp L85
 mod7:
 	pushq %rbp
 	movq %rsp, %rbp
@@ -153,14 +152,14 @@ compute_row:
 	movq %rsi, %r10
 	movq %rdi, -96(%rbp)
 	movq %r10, -104(%rbp)
-L126:
+L125:
 	movq -104(%rbp), %r10
 	movq $0, %r8
 	cmpq %r8, %r10
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L147
+	jnz L146
 	movq -96(%rbp), %rdi
 	movq $0, %rsi
 	movq $1, %rdx
@@ -170,7 +169,7 @@ L126:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L147:
+L146:
 	movq -96(%rbp), %r15
 	movq %r15, -16(%rbp)
 	movq -104(%rbp), %r15
@@ -193,37 +192,37 @@ L147:
 	movq -16(%rbp), %rdi
 	call set
 	movq %rax, %r10
-	movq -104(%rbp), %r10
-	movq $1, %r8
-	subq %r8, %r10
+	movq -104(%rbp), %r8
+	movq $1, %r10
+	subq %r10, %r8
+	movq %r8, %r10
 	movq %r10, -104(%rbp)
-	jmp L126
+	jmp L125
 pascal:
 	pushq %rbp
 	movq %rsp, %rbp
 	addq $-104, %rsp
 	movq %rdi, -32(%rbp)
 	movq -32(%rbp), %rdi
-	movq $1, %r10
-	addq %r10, %rdi
+	incq %rdi
 	call create
 	movq %rax, %r10
 	movq %r10, -48(%rbp)
 	movq $0, %r10
 	movq %r10, -40(%rbp)
-L159:
+L158:
 	movq -40(%rbp), %r10
 	movq -32(%rbp), %r8
 	cmpq %r8, %r10
 	setl %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L175
+	jnz L173
 	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L175:
+L173:
 	movq -48(%rbp), %rdi
 	movq -40(%rbp), %rsi
 	movq $0, %rdx
@@ -238,10 +237,9 @@ L175:
 	call print_row
 	movq %rax, %r10
 	movq -40(%rbp), %r10
-	movq $1, %r8
-	addq %r8, %r10
+	incq %r10
 	movq %r10, -40(%rbp)
-	jmp L159
+	jmp L158
 main:
 	pushq %rbp
 	movq %rsp, %rbp

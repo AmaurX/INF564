@@ -14,7 +14,7 @@ L19:
 	setl %r11b
 	movzbq %r11b, %r8
 	testq %r8, %r8
-	jnz L45
+	jnz L43
 	movq $100, %r8
 	cmpq %r8, %r10
 	sete %r11b
@@ -34,28 +34,26 @@ L8:
 	call putchar
 	movq %rax, %r10
 	jmp L6
-L45:
+L43:
 	movq $10, %r8
 	movq %r8, %r9
-L30:
+L29:
 	movq %r8, %r9
 	movq $0, %rcx
 	cmpq %rcx, %r9
 	setg %r11b
 	movzbq %r11b, %r9
 	testq %r9, %r9
-	jnz L42
+	jnz L40
 	movq %rax, %r8
-	movq $1, %r9
-	addq %r9, %r8
+	incq %r8
 	movq %r8, %rax
 	jmp L19
-L42:
-	movq $1, %r9
-	addq %r9, %r10
+L40:
+	incq %r10
 	movq %r10, %r9
 	movq $1, %r9
 	subq %r9, %r8
 	movq %r8, %r9
-	jmp L30
+	jmp L29
 	.data

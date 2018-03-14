@@ -4,7 +4,7 @@
 *)
 (* open Ttree *)
 open Rtltree
-
+open Format
 exception Error of string
 
 let graph = ref Label.M.empty
@@ -86,6 +86,20 @@ and rtl_unop unop expr locals destl dest_register =
 and rtl_binop binop e1 e2 locals destl dest_register =
   (* match binop with
      | (Ptree.Badd | Ptree.Bdiv | Ptree.Bdiv | Ptree.Bsub) -> *)
+  match binop, e1.Ttree.expr_node, e2.Ttree.expr_node with 
+  | Ptree.Badd, Ttree.Econst(i), _ -> 
+    let reg_e2 = Register.fresh() in
+    let addi = Ops.Maddi(i) in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
+    let next_instr = generate (Emunop (addi, reg_e2, copy_lb)) in
+    rtl_expr e2 locals next_instr reg_e2
+  | Ptree.Badd, _, Ttree.Econst(i) -> 
+    let reg_e1 = Register.fresh() in
+    let addi = Ops.Maddi(i) in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
+    let next_instr = generate (Emunop (addi, reg_e1, copy_lb)) in
+    rtl_expr e1 locals next_instr reg_e1
+  | _ -> 
   let translate_simple_binop binop = match binop with
     (* | Ptree.Beq-> Ops. *)
     | Ptree.Badd -> Ops.Madd
@@ -103,7 +117,7 @@ and rtl_binop binop e1 e2 locals destl dest_register =
 
   match binop with
   (* simple arithmetical  and ordering binops *)
-  | (Ptree.Badd | Ptree.Bdiv | Ptree.Bmul | Ptree.Bsub)
+  | (Ptree.Badd| Ptree.Bdiv | Ptree.Bmul | Ptree.Bsub)
   | (Ptree.Beq | Ptree.Bneq | Ptree.Bge | Ptree.Bgt | Ptree.Ble | Ptree.Blt) ->
     let conv_binop = translate_simple_binop binop in
     let reg_e1 = Register.fresh() in

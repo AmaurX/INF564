@@ -12,60 +12,50 @@ many:
 	movq %r15, -112(%rbp)
 	movq 16(%rbp), %r15
 	movq %r15, -104(%rbp)
-	movq %r9, -80(%rbp)
+	movq %r9, -96(%rbp)
 	movq %r8, -72(%rbp)
 	movq %rcx, -64(%rbp)
 	movq %rdx, -56(%rbp)
 	movq %rsi, -48(%rbp)
 	movq %rdi, -40(%rbp)
-	movq $64, %rdi
-	movq -40(%rbp), %r10
-	addq %r10, %rdi
+	movq -40(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -48(%rbp), %r10
-	addq %r10, %rdi
+	movq -48(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -56(%rbp), %r10
-	addq %r10, %rdi
+	movq -56(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -64(%rbp), %r10
-	addq %r10, %rdi
+	movq -64(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -72(%rbp), %r10
-	addq %r10, %rdi
+	movq -72(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -80(%rbp), %r10
-	addq %r10, %rdi
+	movq -96(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -104(%rbp), %r10
-	addq %r10, %rdi
+	movq -104(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -112(%rbp), %r10
-	addq %r10, %rdi
+	movq -112(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -8(%rbp), %r10
-	addq %r10, %rdi
+	movq -8(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $64, %rdi
-	movq -16(%rbp), %r10
-	addq %r10, %rdi
+	movq -16(%rbp), %rdi
+	addq $64, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $10, %rdi
@@ -88,7 +78,7 @@ L15:
 	movq -56(%rbp), %rsi
 	movq -64(%rbp), %rdx
 	movq -72(%rbp), %rcx
-	movq -80(%rbp), %r8
+	movq -96(%rbp), %r8
 	movq -104(%rbp), %r9
 	movq -112(%rbp), %r15
 	movq %r15, -32(%rbp)
@@ -114,14 +104,14 @@ main:
 	movq $4, %rcx
 	movq $5, %r8
 	movq $6, %r9
-	movq $7, -96(%rbp)
-	movq $8, -88(%rbp)
+	movq $7, -88(%rbp)
+	movq $8, -80(%rbp)
 	movq $9, %rax
 	movq $10, %r10
 	pushq %r10
 	pushq %rax
+	pushq -80(%rbp)
 	pushq -88(%rbp)
-	pushq -96(%rbp)
 	call many
 	movq %rax, %r10
 	addq $32, %rsp

@@ -166,27 +166,26 @@ print_int:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L136
-L134:
-	movq $48, %rdi
-	movq -56(%rbp), %r9
-	movq $10, %r10
-	movq -64(%rbp), %r8
-	imulq %r8, %r10
-	subq %r10, %r9
-	movq %r9, %r10
-	addq %r10, %rdi
+	jnz L135
+L133:
+	movq -56(%rbp), %rdi
+	movq $10, %r8
+	movq -64(%rbp), %r10
+	imulq %r10, %r8
+	movq %r8, %r10
+	subq %r10, %rdi
+	addq $48, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L136:
+L135:
 	movq -64(%rbp), %rdi
 	call print_int
 	movq %rax, %r10
-	jmp L134
+	jmp L133
 print:
 	pushq %rbp
 	movq %rsp, %rbp
@@ -202,8 +201,8 @@ print:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L169
-L166:
+	jnz L168
+L165:
 	movq -8(%rbp), %r10
 	movq 0(%r10), %rdi
 	call print_int
@@ -215,25 +214,25 @@ L166:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L156
-L153:
+	jnz L155
+L152:
 	movq $41, %rdi
 	call putchar
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L156:
+L155:
 	movq -8(%rbp), %r10
 	movq 16(%r10), %rdi
 	call print
 	movq %rax, %r10
-	jmp L153
-L169:
+	jmp L152
+L168:
 	movq -8(%rbp), %r10
 	movq 8(%r10), %rdi
 	call print
 	movq %rax, %r10
-	jmp L166
+	jmp L165
 main:
 	pushq %rbp
 	movq %rsp, %rbp
@@ -267,20 +266,20 @@ main:
 	call contient
 	movq %rax, %r10
 	testq %r10, %r10
-	jnz L224
+	jnz L223
 	movq $0, %r10
-L218:
+L217:
 	testq %r10, %r10
-	jnz L216
+	jnz L215
 	movq $0, %r10
-L211:
+L210:
 	testq %r10, %r10
-	jnz L209
+	jnz L208
 	movq $0, %r10
-L203:
+L202:
 	testq %r10, %r10
-	jnz L201
-L195:
+	jnz L200
+L194:
 	movq -16(%rbp), %rdi
 	movq $42, %rsi
 	call insere
@@ -303,7 +302,7 @@ L195:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L201:
+L200:
 	movq $111, %rdi
 	call putchar
 	movq %rax, %r10
@@ -313,8 +312,8 @@ L201:
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L195
-L209:
+	jmp L194
+L208:
 	movq -16(%rbp), %rdi
 	movq $3, %rsi
 	call contient
@@ -323,16 +322,16 @@ L209:
 	sete %r10b
 	cmpq $0, %r10
 	setne %r10b
-	jmp L203
-L216:
+	jmp L202
+L215:
 	movq -16(%rbp), %rdi
 	movq $17, %rsi
 	call contient
 	movq %rax, %r10
 	cmpq $0, %r10
 	setne %r10b
-	jmp L211
-L224:
+	jmp L210
+L223:
 	movq -16(%rbp), %rdi
 	movq $0, %rsi
 	call contient
@@ -341,5 +340,5 @@ L224:
 	sete %r10b
 	cmpq $0, %r10
 	setne %r10b
-	jmp L218
+	jmp L217
 	.data

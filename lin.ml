@@ -1,7 +1,7 @@
 open X86_64
 (* open Register *)
 open Ops
-
+open Format
 exception Error of string
 
 let visited = Hashtbl.create 17
@@ -62,12 +62,13 @@ let operandb = function
 
 let treat_unop unop op l= 
   match unop with 
-  | Maddi (i32) ->  if i32 == Int32.of_int 1 
+  | Maddi (i32) ->  fprintf std_formatter "heelo %ld @\n" i32;
+                    if Int32.to_int i32 == 1 
                     then begin
                       emit l (incq (operandq op))
                     end
                     else begin
-                      if i32 == Int32.of_int (-1) then begin
+                      if Int32.to_int i32 == -1 then begin
                         emit l (decq (operandq op))  
                       end
                       else begin

@@ -13,7 +13,7 @@ L11:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L24
+	jnz L22
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -21,15 +21,13 @@ L11:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L24:
-	movq $65, %rdi
-	movq -8(%rbp), %r10
-	movq $1, %r8
-	subq %r8, %r10
-	movq %r10, -8(%rbp)
-	addq %r10, %rdi
+L22:
+	movq -8(%rbp), %rdi
 	movq $1, %r10
-	addq %r10, %rdi
+	subq %r10, %rdi
+	movq %rdi, -8(%rbp)
+	addq $65, %rdi
+	incq %rdi
 	call putchar
 	movq %rax, %r10
 	jmp L11

@@ -40,7 +40,7 @@ t_ltl: mini-c
 	cd tests && ./run -i "../mini-c --interp-ltl"
 
 t_final: mini-c
-	cd tests && ./run -3 ../mini-c
+	cd tests && ./run -3 "../mini-c --debug"
 
 cleanmini:
 	$(RM) tests/mini-c

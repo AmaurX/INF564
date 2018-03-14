@@ -10,14 +10,12 @@ main:
 	call putchar
 	movq %rax, %r10
 	movq -8(%rbp), %rdi
-	movq $1, %r10
-	addq %r10, %rdi
+	incq %rdi
 	movq %rdi, -8(%rbp)
 	call putchar
 	movq %rax, %r10
 	movq -8(%rbp), %rdi
-	movq $1, %r10
-	addq %r10, %rdi
+	incq %rdi
 	movq %rdi, %r10
 	call putchar
 	movq %rax, %r10

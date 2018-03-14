@@ -3,10 +3,10 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $1, %r10
-	movq %r10, %r8
-	movq $65, %rdi
-	addq %r10, %rdi
+	movq $1, %rdi
+	movq %rdi, %r10
+	movq %rdi, %r10
+	addq $65, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $10, %rdi

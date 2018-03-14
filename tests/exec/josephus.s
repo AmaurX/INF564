@@ -147,13 +147,13 @@ L125:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L149
+	jnz L148
 	movq -88(%rbp), %r10
 	movq 0(%r10), %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L149:
+L148:
 	movq $1, %r10
 	movq %r10, %r8
 L136:
@@ -163,7 +163,7 @@ L136:
 	setl %r11b
 	movzbq %r11b, %r8
 	testq %r8, %r8
-	jnz L146
+	jnz L145
 	movq -88(%rbp), %rdi
 	call supprimer
 	movq %rax, %r10
@@ -171,12 +171,11 @@ L136:
 	movq 8(%r10), %r10
 	movq %r10, -88(%rbp)
 	jmp L125
-L146:
+L145:
 	movq -88(%rbp), %r8
 	movq 8(%r8), %r8
 	movq %r8, -88(%rbp)
-	movq $1, %r8
-	addq %r8, %r10
+	incq %r10
 	movq %r10, %r8
 	jmp L136
 print_int:
@@ -195,26 +194,25 @@ print_int:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L170
-L168:
-	movq $48, %rdi
-	movq -8(%rbp), %r10
-	movq $10, %r8
-	movq -16(%rbp), %r9
-	imulq %r9, %r8
-	subq %r8, %r10
-	addq %r10, %rdi
+	jnz L168
+L166:
+	movq -8(%rbp), %rdi
+	movq $10, %r10
+	movq -16(%rbp), %r8
+	imulq %r8, %r10
+	subq %r10, %rdi
+	addq $48, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L170:
+L168:
 	movq -16(%rbp), %rdi
 	call print_int
 	movq %rax, %r10
-	jmp L168
+	jmp L166
 main:
 	pushq %rbp
 	movq %rsp, %rbp

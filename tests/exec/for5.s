@@ -9,7 +9,7 @@ main:
 L8:
 	movq -8(%rbp), %r10
 	testq %r10, %r10
-	jnz L19
+	jnz L18
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -17,10 +17,9 @@ L8:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L19:
-	movq $65, %rdi
-	movq -8(%rbp), %r10
-	addq %r10, %rdi
+L18:
+	movq -8(%rbp), %rdi
+	addq $65, %rdi
 	call putchar
 	movq %rax, %r10
 	movq -8(%rbp), %r8

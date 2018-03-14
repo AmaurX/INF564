@@ -16,27 +16,25 @@ print_int:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L17
-L15:
-	movq $48, %rdi
-	movq -8(%rbp), %r9
+	jnz L16
+L14:
+	movq -8(%rbp), %rdi
 	movq $10, %r10
 	movq -16(%rbp), %r8
 	imulq %r8, %r10
-	subq %r10, %r9
-	movq %r9, %r10
-	addq %r10, %rdi
+	subq %r10, %rdi
+	addq $48, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L17:
+L16:
 	movq -16(%rbp), %rdi
 	call print_int
 	movq %rax, %r10
-	jmp L15
+	jmp L14
 main:
 	pushq %rbp
 	movq %rsp, %rbp
