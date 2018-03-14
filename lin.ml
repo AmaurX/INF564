@@ -62,7 +62,18 @@ let operandb = function
 
 let treat_unop unop op l= 
   match unop with 
-  | Maddi (i32) -> emit l (addq (imm32 i32) (operandq op))
+  | Maddi (i32) ->  if i32 == Int32.of_int 1 
+                    then begin
+                      emit l (incq (operandq op))
+                    end
+                    else begin
+                      if i32 == Int32.of_int (-1) then begin
+                        emit l (decq (operandq op))  
+                      end
+                      else begin
+                      emit l (addq (imm32 i32) (operandq op))
+                      end
+                    end
   | Msetei (i32) -> emit l (cmpq (imm32 i32) (operandq op)) ; emit_wl (sete (operandb op))
   | Msetnei (i32) -> emit l (cmpq (imm32 i32) (operandq op)) ; emit_wl (setne (operandb op))
 
