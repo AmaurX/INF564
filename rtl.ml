@@ -84,22 +84,6 @@ and rtl_unop unop expr locals destl dest_register =
   @param dest_register Register to store the result of the expression
 *)
 and rtl_binop binop e1 e2 locals destl dest_register =
-  (* match binop with
-     | (Ptree.Badd | Ptree.Bdiv | Ptree.Bdiv | Ptree.Bsub) -> *)
-  match binop, e1.Ttree.expr_node, e2.Ttree.expr_node with 
-  | Ptree.Badd, Ttree.Econst(i), _ -> 
-    let reg_e2 = Register.fresh() in
-    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
-    let copy_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
-    let next_instr = generate (Emunop (addi, reg_e2, copy_lb)) in
-    rtl_expr e2 locals next_instr reg_e2
-  | (Ptree.Badd | Ptree.Bsub), _, Ttree.Econst(i) -> 
-    let reg_e1 = Register.fresh() in
-    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
-    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
-    let next_instr = generate (Emunop (addi, reg_e1, copy_lb)) in
-    rtl_expr e1 locals next_instr reg_e1
-  | _ -> 
   let translate_simple_binop binop = match binop with
     (* | Ptree.Beq-> Ops. *)
     | Ptree.Badd -> Ops.Madd
@@ -114,6 +98,38 @@ and rtl_binop binop e1 e2 locals destl dest_register =
     | Ptree.Bneq -> Ops.Msetne
     | _ -> raise (Error ("non-simple binop given to translate_simple_binop"))
   in
+  let translate_operation_int32 = function
+    | Ptree.Badd -> Int32.add
+    | Ptree.Bdiv -> Int32.div
+    | Ptree.Bsub -> Int32.sub
+    | Ptree.Bmul -> Int32.mul
+    | _ -> raise (Error ("A operation other than add, mul, div or sub was given to translate_operation_int32"))
+  in
+  match binop, e1.Ttree.expr_node, e2.Ttree.expr_node with 
+  |(Ptree.Badd |  Ptree.Bmul | Ptree.Bsub), Ttree.Econst(i1), Ttree.Econst(i2) -> 
+    let reg_e1 = Register.fresh() in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
+    let resultat = translate_operation_int32 binop i1 i2 in
+    generate (Econst (resultat, reg_e1, copy_lb))
+  |Ptree.Bdiv, Ttree.Econst(i1), Ttree.Econst(i2) when (Int32.to_int i2) <> 0 -> 
+    let reg_e1 = Register.fresh() in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
+    let resultat = translate_operation_int32 binop i1 i2 in
+    generate (Econst (resultat, reg_e1, copy_lb))
+  | Ptree.Badd, Ttree.Econst(i), _ -> 
+    let reg_e2 = Register.fresh() in
+    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
+    let next_instr = generate (Emunop (addi, reg_e2, copy_lb)) in
+    rtl_expr e2 locals next_instr reg_e2
+  | (Ptree.Badd | Ptree.Bsub), _, Ttree.Econst(i) -> 
+    let reg_e1 = Register.fresh() in
+    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
+    let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
+    let next_instr = generate (Emunop (addi, reg_e1, copy_lb)) in
+    rtl_expr e1 locals next_instr reg_e1
+  | _, _, _ -> 
+  
 
   match binop with
   (* simple arithmetical  and ordering binops *)

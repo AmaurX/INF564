@@ -62,8 +62,7 @@ let operandb = function
 
 let treat_unop unop op l= 
   match unop with 
-  | Maddi (i32) ->  fprintf std_formatter "heelo %ld @\n" i32;
-                    if Int32.to_int i32 == 1 
+  | Maddi (i32) ->  if Int32.to_int i32 == 1 
                     then begin
                       emit l (incq (operandq op))
                     end

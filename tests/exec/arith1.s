@@ -3,47 +3,32 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $4, %rdi
+	movq $104, %rdi
+	call putchar
+	movq %rax, %r10
+	movq $101, %rdi
+	call putchar
+	movq %rax, %r10
+	movq $8, %rdi
 	addq $100, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $102, %rdi
-	decq %rdi
+	movq $108, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $2, %rdi
-	movq $4, %r10
-	imulq %r10, %rdi
-	addq $100, %rdi
-	call putchar
-	movq %rax, %r10
-	movq $216, %rax
-	movq $2, %r10
-	cqto
-	idivq %r10
-	movq %rax, %rdi
-	call putchar
-	movq %rax, %r10
-	movq $3, %rdi
-	movq $37, %r10
-	imulq %r10, %rdi
+	movq $111, %rdi
 	call putchar
 	movq %rax, %r10
 	movq $32, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $1, %r10
-	addq $-2, %r10
+	movq $-1, %r10
 	movq $0, %rdi
 	subq %r10, %rdi
 	addq $118, %rdi
 	call putchar
 	movq %rax, %r10
-	movq $122, %rax
-	movq $11, %r10
-	cqto
-	idivq %r10
-	movq %rax, %rdi
+	movq $11, %rdi
 	addq $100, %rdi
 	call putchar
 	movq %rax, %r10
@@ -64,8 +49,7 @@ main:
 	call putchar
 	movq %rax, %r10
 	movq $2, %rdi
-	movq $1, %r10
-	incq %r10
+	movq $2, %r10
 	cmpq %r10, %rdi
 	sete %r11b
 	movzbq %r11b, %rdi
