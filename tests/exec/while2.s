@@ -6,13 +6,12 @@ main:
 	addq $-8, %rsp
 	movq $10, %r10
 	movq %r10, -8(%rbp)
-L13:
+L12:
 	movq -8(%rbp), %r10
-	movq $1, %r8
-	subq %r8, %r10
+	decq %r10
 	movq %r10, -8(%rbp)
 	testq %r10, %r10
-	jnz L17
+	jnz L16
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -20,10 +19,10 @@ L13:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L17:
+L16:
 	movq -8(%rbp), %rdi
 	addq $65, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L13
+	jmp L12
 	.data

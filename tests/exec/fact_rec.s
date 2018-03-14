@@ -10,10 +10,9 @@ fact_rec:
 	setle %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L13
+	jnz L12
 	movq %rdi, -8(%rbp)
-	movq $1, %r10
-	subq %r10, %rdi
+	decq %rdi
 	call fact_rec
 	movq %rax, %r10
 	movq -8(%rbp), %r15
@@ -24,7 +23,7 @@ L1:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L13:
+L12:
 	movq $1, %rax
 	jmp L1
 main:
@@ -39,8 +38,8 @@ main:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L45
-L43:
+	jnz L44
+L42:
 	movq $1, %rdi
 	call fact_rec
 	movq %rax, %r10
@@ -49,8 +48,8 @@ L43:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L36
-L34:
+	jnz L35
+L33:
 	movq $5, %rdi
 	call fact_rec
 	movq %rax, %r10
@@ -59,8 +58,8 @@ L34:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L27
-L25:
+	jnz L26
+L24:
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -68,19 +67,19 @@ L25:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L27:
+L26:
 	movq $51, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L25
-L36:
+	jmp L24
+L35:
 	movq $50, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L34
-L45:
+	jmp L33
+L44:
 	movq $49, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L43
+	jmp L42
 	.data

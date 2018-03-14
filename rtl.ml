@@ -89,13 +89,13 @@ and rtl_binop binop e1 e2 locals destl dest_register =
   match binop, e1.Ttree.expr_node, e2.Ttree.expr_node with 
   | Ptree.Badd, Ttree.Econst(i), _ -> 
     let reg_e2 = Register.fresh() in
-    let addi = Ops.Maddi(i) in
+    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
     let copy_lb = generate (Embinop (Ops.Mmov, reg_e2, dest_register, destl)) in
     let next_instr = generate (Emunop (addi, reg_e2, copy_lb)) in
     rtl_expr e2 locals next_instr reg_e2
-  | Ptree.Badd, _, Ttree.Econst(i) -> 
+  | (Ptree.Badd | Ptree.Bsub), _, Ttree.Econst(i) -> 
     let reg_e1 = Register.fresh() in
-    let addi = Ops.Maddi(i) in
+    let addi = if binop == Ptree.Badd then Ops.Maddi(i) else Ops.Maddi(Int32.neg i) in
     let copy_lb = generate (Embinop (Ops.Mmov, reg_e1, dest_register, destl)) in
     let next_instr = generate (Emunop (addi, reg_e1, copy_lb)) in
     rtl_expr e1 locals next_instr reg_e1

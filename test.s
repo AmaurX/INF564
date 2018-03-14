@@ -3,10 +3,11 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
-	movq $10, %rax
+	movq $102, %rdi
+	decq %rdi
+	call putchar
 	movq %rax, %r10
-	incq %rax
-	movq %rax, %r10
+	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret

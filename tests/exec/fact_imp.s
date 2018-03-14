@@ -13,14 +13,13 @@ L9:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L22
+	jnz L21
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L22:
+L21:
 	movq %r8, %r10
-	movq $1, %r8
-	subq %r8, %r10
+	decq %r10
 	movq %r10, %r8
 	incq %r10
 	imulq %r10, %rax
@@ -37,8 +36,8 @@ main:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L51
-L49:
+	jnz L50
+L48:
 	movq $1, %rdi
 	call fact_imp
 	movq %rax, %r10
@@ -47,8 +46,8 @@ L49:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L42
-L40:
+	jnz L41
+L39:
 	movq $5, %rdi
 	call fact_imp
 	movq %rax, %r10
@@ -57,8 +56,8 @@ L40:
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L33
-L31:
+	jnz L32
+L30:
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -66,19 +65,19 @@ L31:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L33:
+L32:
 	movq $51, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L31
-L42:
+	jmp L30
+L41:
 	movq $50, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L40
-L51:
+	jmp L39
+L50:
 	movq $49, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L49
+	jmp L48
 	.data

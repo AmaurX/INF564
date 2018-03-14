@@ -8,8 +8,7 @@ main:
 	call putchar
 	movq %rax, %r10
 	movq $102, %rdi
-	movq $1, %r10
-	subq %r10, %rdi
+	decq %rdi
 	call putchar
 	movq %rax, %r10
 	movq $2, %rdi
@@ -34,8 +33,7 @@ main:
 	call putchar
 	movq %rax, %r10
 	movq $1, %r10
-	movq $2, %r8
-	subq %r8, %r10
+	addq $-2, %r10
 	movq $0, %rdi
 	subq %r10, %rdi
 	addq $118, %rdi

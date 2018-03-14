@@ -116,19 +116,18 @@ L98:
 	setge %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L107
+	jnz L106
 	movq -64(%rbp), %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L107:
+L106:
 	movq -64(%rbp), %rdi
 	movq -72(%rbp), %rsi
 	call inserer_apres
 	movq %rax, %r10
 	movq -72(%rbp), %r10
-	movq $1, %r8
-	subq %r8, %r10
+	decq %r10
 	movq %r10, -72(%rbp)
 	jmp L98
 josephus:
@@ -139,7 +138,7 @@ josephus:
 	call cercle
 	movq %rax, %r10
 	movq %r10, -88(%rbp)
-L125:
+L124:
 	movq -88(%rbp), %r10
 	movq -88(%rbp), %r8
 	movq 8(%r8), %r8
@@ -147,37 +146,37 @@ L125:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L148
+	jnz L147
 	movq -88(%rbp), %r10
 	movq 0(%r10), %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L148:
+L147:
 	movq $1, %r10
 	movq %r10, %r8
-L136:
+L135:
 	movq %r10, %r8
 	movq -80(%rbp), %r9
 	cmpq %r9, %r8
 	setl %r11b
 	movzbq %r11b, %r8
 	testq %r8, %r8
-	jnz L145
+	jnz L144
 	movq -88(%rbp), %rdi
 	call supprimer
 	movq %rax, %r10
 	movq -88(%rbp), %r10
 	movq 8(%r10), %r10
 	movq %r10, -88(%rbp)
-	jmp L125
-L145:
+	jmp L124
+L144:
 	movq -88(%rbp), %r8
 	movq 8(%r8), %r8
 	movq %r8, -88(%rbp)
 	incq %r10
 	movq %r10, %r8
-	jmp L136
+	jmp L135
 print_int:
 	pushq %rbp
 	movq %rsp, %rbp
@@ -194,8 +193,8 @@ print_int:
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L168
-L166:
+	jnz L167
+L165:
 	movq -8(%rbp), %rdi
 	movq $10, %r10
 	movq -16(%rbp), %r8
@@ -208,11 +207,11 @@ L166:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L168:
+L167:
 	movq -16(%rbp), %rdi
 	call print_int
 	movq %rax, %r10
-	jmp L166
+	jmp L165
 main:
 	pushq %rbp
 	movq %rsp, %rbp

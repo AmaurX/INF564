@@ -4,24 +4,22 @@ get:
 	pushq %rbp
 	movq %rsp, %rbp
 	addq $-104, %rsp
-	movq %rdi, %r9
-	movq %rsi, %r10
-	movq $0, %r8
-	cmpq %r8, %r10
+	movq %rdi, %r10
+	movq %rsi, %r8
+	movq $0, %r9
+	cmpq %r9, %r8
 	sete %r11b
-	movzbq %r11b, %r10
-	testq %r10, %r10
-	jnz L13
-	movq 8(%r9), %rdi
-	movq $1, %r10
-	subq %r10, %rsi
+	movzbq %r11b, %r8
+	testq %r8, %r8
+	jnz L12
+	movq 8(%r10), %rdi
+	decq %rsi
 	call get
 L1:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L13:
-	movq %r9, %r10
+L12:
 	movq 0(%r10), %rax
 	jmp L1
 set:
@@ -35,69 +33,67 @@ set:
 	sete %r11b
 	movzbq %r11b, %r8
 	testq %r8, %r8
-	jnz L35
+	jnz L33
 	movq 8(%r10), %rdi
-	movq $1, %r10
-	subq %r10, %rsi
+	decq %rsi
 	call set
-L20:
+L19:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L35:
+L33:
 	movq %rdx, %rax
 	movq %rax, 0(%r10)
-	jmp L20
+	jmp L19
 create:
 	pushq %rbp
 	movq %rsp, %rbp
 	addq $-104, %rsp
-	movq %rdi, -56(%rbp)
-	movq -56(%rbp), %r10
+	movq %rdi, -48(%rbp)
+	movq -48(%rbp), %r10
 	movq $0, %r8
 	cmpq %r8, %r10
 	sete %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L63
+	jnz L60
 	movq $16, %rdi
 	call sbrk
 	movq %rax, %r10
-	movq %r10, -64(%rbp)
+	movq %r10, -56(%rbp)
 	movq $0, %r10
-	movq -64(%rbp), %r8
+	movq -56(%rbp), %r8
 	movq %r10, 0(%r8)
-	movq -56(%rbp), %rdi
-	movq $1, %r10
-	subq %r10, %rdi
+	movq -48(%rbp), %rdi
+	decq %rdi
 	call create
 	movq %rax, %r10
-	movq -64(%rbp), %r8
+	movq -56(%rbp), %r8
 	movq %r10, 8(%r8)
-	movq -64(%rbp), %rax
-L42:
+	movq -56(%rbp), %rax
+L40:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L63:
+L60:
 	movq $0, %rax
-	jmp L42
+	jmp L40
 print_row:
 	pushq %rbp
 	movq %rsp, %rbp
 	addq $-104, %rsp
-	movq %rsi, -80(%rbp)
-	movq %rdi, -72(%rbp)
+	movq %rsi, -72(%rbp)
+	movq %rdi, -64(%rbp)
 	movq $0, %r10
-	movq %r10, -88(%rbp)
-L80:
-	movq -88(%rbp), %r10
-	movq -80(%rbp), %r8
+	movq %r10, -80(%rbp)
+L77:
+	movq -80(%rbp), %r10
+	movq -72(%rbp), %r8
 	cmpq %r8, %r10
 	setle %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L96
+	jnz L93
 	movq $10, %rdi
 	call putchar
 	movq %rax, %r10
@@ -105,9 +101,9 @@ L80:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L96:
-	movq -72(%rbp), %rdi
-	movq -88(%rbp), %rsi
+L93:
+	movq -64(%rbp), %rdi
+	movq -80(%rbp), %rsi
 	call get
 	movq %rax, %r10
 	movq $0, %r8
@@ -115,20 +111,20 @@ L96:
 	setne %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L87
+	jnz L84
 	movq $46, %rdi
 	call putchar
 	movq %rax, %r10
-L85:
-	movq -88(%rbp), %r10
+L82:
+	movq -80(%rbp), %r10
 	incq %r10
-	movq %r10, -88(%rbp)
-	jmp L80
-L87:
+	movq %r10, -80(%rbp)
+	jmp L77
+L84:
 	movq $42, %rdi
 	call putchar
 	movq %rax, %r10
-	jmp L85
+	jmp L82
 mod7:
 	pushq %rbp
 	movq %rsp, %rbp
@@ -150,17 +146,17 @@ compute_row:
 	movq %rsp, %rbp
 	addq $-104, %rsp
 	movq %rsi, %r10
-	movq %rdi, -96(%rbp)
-	movq %r10, -104(%rbp)
-L125:
-	movq -104(%rbp), %r10
+	movq %rdi, -88(%rbp)
+	movq %r10, -96(%rbp)
+L122:
+	movq -96(%rbp), %r10
 	movq $0, %r8
 	cmpq %r8, %r10
 	setg %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L146
-	movq -96(%rbp), %rdi
+	jnz L141
+	movq -88(%rbp), %rdi
 	movq $0, %rsi
 	movq $1, %rdx
 	call set
@@ -169,77 +165,74 @@ L125:
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L146:
-	movq -96(%rbp), %r15
-	movq %r15, -16(%rbp)
-	movq -104(%rbp), %r15
+L141:
+	movq -88(%rbp), %r15
 	movq %r15, -8(%rbp)
-	movq -96(%rbp), %rdi
-	movq -104(%rbp), %rsi
+	movq -96(%rbp), %r15
+	movq %r15, -104(%rbp)
+	movq -88(%rbp), %rdi
+	movq -96(%rbp), %rsi
 	call get
-	movq %rax, -24(%rbp)
-	movq -96(%rbp), %rdi
-	movq -104(%rbp), %rsi
-	movq $1, %r10
-	subq %r10, %rsi
+	movq %rax, -16(%rbp)
+	movq -88(%rbp), %rdi
+	movq -96(%rbp), %rsi
+	decq %rsi
 	call get
 	movq %rax, %r10
-	addq %r10, -24(%rbp)
-	movq -24(%rbp), %rdi
+	addq %r10, -16(%rbp)
+	movq -16(%rbp), %rdi
 	call mod7
 	movq %rax, %rdx
-	movq -8(%rbp), %rsi
-	movq -16(%rbp), %rdi
+	movq -104(%rbp), %rsi
+	movq -8(%rbp), %rdi
 	call set
 	movq %rax, %r10
-	movq -104(%rbp), %r8
-	movq $1, %r10
-	subq %r10, %r8
-	movq %r8, %r10
-	movq %r10, -104(%rbp)
-	jmp L125
+	movq -96(%rbp), %r10
+	decq %r10
+	movq %r10, -96(%rbp)
+	jmp L122
 pascal:
 	pushq %rbp
 	movq %rsp, %rbp
 	addq $-104, %rsp
-	movq %rdi, -32(%rbp)
-	movq -32(%rbp), %rdi
+	movq %rdi, -24(%rbp)
+	movq -24(%rbp), %rdi
 	incq %rdi
 	call create
 	movq %rax, %r10
-	movq %r10, -48(%rbp)
-	movq $0, %r10
 	movq %r10, -40(%rbp)
-L158:
-	movq -40(%rbp), %r10
-	movq -32(%rbp), %r8
+	movq $0, %r10
+	movq %r10, -32(%rbp)
+L153:
+	movq -32(%rbp), %r10
+	movq -24(%rbp), %r8
 	cmpq %r8, %r10
 	setl %r11b
 	movzbq %r11b, %r10
 	testq %r10, %r10
-	jnz L173
+	jnz L168
 	movq $0, %rax
 	movq %rbp, %rsp
 	popq %rbp
 	ret
-L173:
-	movq -48(%rbp), %rdi
-	movq -40(%rbp), %rsi
+L168:
+	movq -40(%rbp), %rdi
+	movq -32(%rbp), %rsi
 	movq $0, %rdx
 	call set
 	movq %rax, %r10
-	movq -48(%rbp), %rdi
-	movq -40(%rbp), %rsi
+	movq -40(%rbp), %rdi
+	movq -32(%rbp), %rsi
 	call compute_row
 	movq %rax, %r10
-	movq -48(%rbp), %rdi
-	movq -40(%rbp), %rsi
+	movq -40(%rbp), %rdi
+	movq -32(%rbp), %rsi
 	call print_row
 	movq %rax, %r10
-	movq -40(%rbp), %r10
+	movq -32(%rbp), %r10
 	incq %r10
-	movq %r10, -40(%rbp)
-	jmp L158
+	movq %r10, -32(%rbp)
+	jmp L153
 main:
 	pushq %rbp
 	movq %rsp, %rbp
