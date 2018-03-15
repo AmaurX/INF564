@@ -146,9 +146,7 @@ let rec treat_mubranch mubranch (op : Ltltree.operand) (lb1 : Label.t) (lb2 : La
   | Mjgi  (i32) -> emit l (cmpq (imm32 i32) (operandq op)));
   
   if not (Hashtbl.mem visited lb2) then begin
-    (* Hashtbl.add visited lb2 (); *)
     need_label lb1;
-    (* need_label lb2; *)
 
     emit_wl ((un_jmp_match mubranch) (lb1 :> string));
     lin g lb2;
@@ -156,14 +154,13 @@ let rec treat_mubranch mubranch (op : Ltltree.operand) (lb1 : Label.t) (lb2 : La
   end
   else begin
     need_label lb2;
-    need_label lb1;
     if not (Hashtbl.mem visited lb1) then begin
-      (* Hashtbl.add visited lb1 (); *)
       emit_wl ((un_opposite_jmp_match mubranch) (lb2 :> string));
       lin g lb1;
-      lin g lb2
     end
     else begin
+      need_label lb1;
+
       emit_wl ((un_jmp_match mubranch) (lb1 :> string));
       emit_wl (jmp (lb2 :> string))
     end
@@ -177,9 +174,7 @@ and treat_mbbranch mbbranch (op1 : Ltltree.operand) (op2 : Ltltree.operand) (lb1
   emit l (cmpq (operandq op1) (operandq op2));
   
   if not (Hashtbl.mem visited lb2) then begin
-    (* Hashtbl.add visited lb2 (); *)
     need_label lb1;
-    need_label lb2;
 
     emit_wl ((bin_jmp_match mbbranch) (lb1 :> string));
     lin g lb2;
@@ -188,14 +183,11 @@ and treat_mbbranch mbbranch (op1 : Ltltree.operand) (op2 : Ltltree.operand) (lb1
   else begin
     need_label lb2;
     if not (Hashtbl.mem visited lb1) then begin
-      (* Hashtbl.add visited lb1 (); *)
       need_label lb1;
       emit_wl ((bin_opposite_jmp_match mbbranch) (lb2 :> string));
       lin g lb1;
-      lin g lb2
     end
     else begin
-      need_label lb1;
       emit_wl ((bin_jmp_match mbbranch) (lb1 :> string));
       emit_wl (jmp (lb2 :> string))
     end

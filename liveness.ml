@@ -1,3 +1,5 @@
+(* Creates a live_info for each instruction *)
+
 open Ertltree
 open Format
 
