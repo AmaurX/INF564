@@ -1,4 +1,6 @@
-(** RTL to ERTL translator *)
+(**
+RTL to ERTL translator
+*)
 
 open Ertltree
 open Ops

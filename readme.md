@@ -6,7 +6,7 @@ This is the main project of the **INF564 - Compilation** course.
 
 The objective is to design a compiler for `mini-c`, a small but functional subset ofC.
 
-## Special features
+## Special features
 
 In addition to compiling correctly, the compiler has the following *incredible* assets:
 - sums & substractions with constant terms are translated to `add $$, reg`, `incq` or `decq`

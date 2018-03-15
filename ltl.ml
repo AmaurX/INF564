@@ -31,7 +31,7 @@ let lookup c r =
   if Register.is_hw r then Reg r else M.find r c
 
 (**
-   True of register is colored as a real hardware register
+   True if register is colored as a real hardware register
    false if spilled
 
 *)
