@@ -3,18 +3,18 @@
 *)
 
 open Printf
-(* open Ptree *)
+(** open Ptree *)
 open Ttree
 
-(* utiliser cette exception pour signaler une erreur de typage *)
+(** utiliser cette exception pour signaler une erreur de typage *)
 exception Error of string
 
 (**************** INITIALISATION ***************)
 
-(* Stores type of defined structures *)
+(** Stores type of defined structures *)
 let struct_table = Hashtbl.create 16
 
-(* Stores variables defined in the current scope *)
+(** Stores variables defined in the current scope *)
 let env_table = ( Hashtbl.create 16 : (string, Ttree.typ) Hashtbl.t)
 
 

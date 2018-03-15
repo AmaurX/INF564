@@ -1,24 +1,46 @@
+(** RTL to ERTL translator *)
+
 open Ertltree
 open Ops
 open Register
 open Format
 exception Error of string
 
+(**
+  The ERTL output graph
+  *)
 let graph = ref Label.M.empty
+
+(**
+  Map where all pseudo-registers lifespans are stored
+  *)
+let live_info_map = ref Label.M.empty
 
 type remaining_label_m = {mutable set : Label.set;}
 
-let generate i =
+let generate instr =
   let l = Label.fresh () in
-  graph := Label.M.add l i !graph;
+  graph := Label.M.add l instr !graph;
   l
 
-let treat_ecall (r, s, rList, l) =  
-  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int(((List.length rList) - 6) * 8 )) , Register.rsp, l)) else l
+  (**
+  Converts function calls to ERTL
+
+  saves caller_saved registers
+
+  passes 6+th args with the stack frame
+
+  @pm dest_reg dest register
+  @pm fun_name function name
+  @pm rList the list of registers given as args
+  @pm l label of next instr after function call
+  *)
+let treat_ecall (dest_reg, fun_name, rList, lb) =  
+  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int(((List.length rList) - 6) * 8 )) , Register.rsp, l)) else lb
   in
-  let labelcopy = generate (Embinop(Mmov, Register.result, r, lastLabel)) in
-  let k = if List.length rList <= 6 then List.length rList else 6  in
-  let labelCall = generate (Ecall (s, k, labelcopy)) in
+  let labelcopy = generate (Embinop(Mmov, Register.result, dest_reg, lastLabel)) in
+  let usedRegs = if List.length rList <= 6 then List.length rList else 6  in
+  let labelCall = generate (Ecall (fun_name, usedRegs, labelcopy)) in
   let rec fill_recursif registerList index label=
     if index < 6 then 
       begin match registerList with 
@@ -38,7 +60,7 @@ let treat_ecall (r, s, rList, l) =
 
 let treat_div (binop, r1, r2, l) = 
   let label1 = generate (Embinop (Mmov, Register.rax, r2 , l)) in
-  let label2 = generate (Embinop (Mdiv, r1, Register.rax, label1)) (*ATTENTION FAUX!!*) in
+  let label2 = generate (Embinop (Mdiv, r1, Register.rax, label1)) in
   Embinop (Mmov ,r2, Register.rax, label2)
 
 
@@ -128,7 +150,7 @@ let kildall livenesstbl =
     then remaining_labels.set <- Label.S.union my_live_info.pred remaining_labels.set;
   done
 
-let live_info_map = ref Label.M.empty
+
 
 let fill_the_map label my_live_info = 
   live_info_map := Label.M.add label my_live_info !live_info_map 
@@ -147,7 +169,15 @@ let liveness instrMap =
   !live_info_map
 
   
+(**
+  RTL => ERTL fun translation
+  explicitly saves callee-saved registers
+  allocates a frame for eventual 6+ parameters
+  expects return value into %rax
 
+  @param fn function
+  @return ERTL function definition to insert into program
+*)
 let ertl_fun fn = 
   ertl_body fn.Rtltree.fun_body;
 

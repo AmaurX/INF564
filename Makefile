@@ -20,6 +20,7 @@ mini-c:
 	ln -sf main.native $@
 
 doc: *.ml* cleandoc
+	mkdir -p doc
 	# ocamlbuild main.docdir/index.html
 	# ocamldoc -html *.ml* -d doc -I _build
 	ocamldoc -html *.ml* -d doc -I _build -inv-merge-ml-mli -verbose -m A -charset utf-8
@@ -39,8 +40,11 @@ t_ertl: mini-c
 t_ltl: mini-c
 	cd tests && ./run -i "../mini-c --interp-ltl"
 
-t_final: mini-c
+t_compil: mini-c
 	cd tests && ./run -3 "../mini-c --debug"
+
+t_final: mini-c
+	cd tests && ./run -all "../mini-c --debug"
 
 cleanmini:
 	$(RM) tests/mini-c

@@ -1,3 +1,5 @@
+(** ERTL to LTL translator *)
+
 open Ltltree
 open Ops
 open Register
@@ -10,13 +12,20 @@ type coloring = color Register.map
 
 let graph = ref Label.M.empty
 
+(**
+   Adds instruction to graph
+   @param i instruction
+*)
 let generate i =
   let l = Label.fresh () in
   graph := Label.M.add l i !graph;
   l
 
 (**
-   Remplace un nom de registre par sa couleur (id son registre physique ou son emplacement de pile)  
+   Colors a register name 
+   @param c color Map
+   @param r registre
+   @return hw register name or stack position
 *)
 let lookup c r =
   if Register.is_hw r then Reg r else M.find r c
@@ -24,6 +33,7 @@ let lookup c r =
 (**
    True of register is colored as a real hardware register
    false if spilled
+
 *)
 let col_is_hw colors operand =
   match operand with
@@ -41,7 +51,7 @@ let print_color fmt = function
 
 let print_color_graph cm =
   Register.M.iter
-  (fun r cr -> printf "%a -> %a@\n" Register.print r print_color cr) cm
+    (fun r cr -> printf "%a -> %a@\n" Register.print r print_color cr) cm
 (**
     This part is coloring the graph    
 *)
@@ -50,13 +60,13 @@ type todo_set_m = {mutable set : Register.set}
 
 let find_best_coloring_preference_four todo potential_colors_map interference_graph =
   let is_of_preference_four register potential_colors = 
-  if Register.S.is_empty potential_colors then false 
-  else true 
+    if Register.S.is_empty potential_colors then false 
+    else true 
 
   in
-  
+
   let filtered_potential_colors_map = Register.M.filter is_of_preference_four potential_colors_map in
-  
+
   if not (Register.M.is_empty filtered_potential_colors_map) 
   then 
     begin
@@ -80,32 +90,32 @@ let find_best_coloring_preference_three todo potential_colors_map interference_g
         else begin true end
       end 
 
-    in
-    
-    let filtered_potential_colors_map = Register.M.filter is_of_preference_three potential_colors_map in
-    
-    if not (Register.M.is_empty filtered_potential_colors_map) 
-    then 
-      begin
-        let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
-        let arcs_of_reg = Register.M.find register_to_color interference_graph in
-        let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
-        (true, register_to_color, Register.S.choose preference_inter_potential)
-      end
-    else
-      begin
-        find_best_coloring_preference_four todo potential_colors_map interference_graph
-      end
-    
+  in
+
+  let filtered_potential_colors_map = Register.M.filter is_of_preference_three potential_colors_map in
+
+  if not (Register.M.is_empty filtered_potential_colors_map) 
+  then 
+    begin
+      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
+      let arcs_of_reg = Register.M.find register_to_color interference_graph in
+      let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
+      (true, register_to_color, Register.S.choose preference_inter_potential)
+    end
+  else
+    begin
+      find_best_coloring_preference_four todo potential_colors_map interference_graph
+    end
+
 
 let find_best_coloring_preference_two todo potential_colors_map interference_graph = 
   let is_of_preference_two register potential_colors = 
-  if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then  false 
-  else true
+    if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then  false 
+    else true
   in
-  
+
   let filtered_potential_colors_map = Register.M.filter is_of_preference_two potential_colors_map in
-  
+
   if not (Register.M.is_empty filtered_potential_colors_map) 
   then 
     begin
@@ -125,18 +135,18 @@ let find_best_coloring_preference_one todo potential_colors_map interference_gra
   let potential_colors_map_todo = Register.M.filter filter_to_do potential_colors_map in
 
   let is_of_preference_one register potential_colors = 
-  if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then begin false end
-  else 
-    begin
-      let only_potential_color = Register.S.choose potential_colors in
-      let arcs_of_reg = Register.M.find register interference_graph in
-      if Register.S.mem only_potential_color arcs_of_reg.prefs then begin true end
-      else begin false end
-    end 
+    if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then begin false end
+    else 
+      begin
+        let only_potential_color = Register.S.choose potential_colors in
+        let arcs_of_reg = Register.M.find register interference_graph in
+        if Register.S.mem only_potential_color arcs_of_reg.prefs then begin true end
+        else begin false end
+      end 
   in
-  
+
   let filtered_potential_colors_map = Register.M.filter is_of_preference_one potential_colors_map_todo in
-  
+
   if not (Register.M.is_empty filtered_potential_colors_map) 
   then 
     begin
@@ -183,7 +193,7 @@ let remove_color potential_colors_map colored_register chosen_color interference
 let change_pref interference_graph register_to_color new_color = 
   let iter register arcs =
     if Register.S.mem register_to_color arcs.prefs then 
-    arcs.prefs <- Register.S.add new_color (Register.S.remove register_to_color arcs.prefs) 
+      arcs.prefs <- Register.S.add new_color (Register.S.remove register_to_color arcs.prefs) 
   in
   Register.M.iter iter interference_graph; interference_graph
 
@@ -222,7 +232,7 @@ let color interference_graph =
   let todo = {set = Register.S.empty} in
   let fill_todo register arcs =
     if not (Register.S.mem register Register.allocatable) then
-    todo.set <- Register.S.add register todo.set
+      todo.set <- Register.S.add register todo.set
   in
   Register.M.iter fill_todo interference_graph;
   let potential_colors_map = {reg_map= Register.M.empty} 
@@ -293,12 +303,12 @@ let check_outs reg_out reg_def interference_graph=
 let handle_interferences live_info interference_graph =
   if not (Register.S.is_empty live_info.Ertltree.defs) then
     Register.S.iter (fun reg_def -> Register.S.iter (fun reg_out -> check_outs reg_out reg_def interference_graph) live_info.Ertltree.outs) live_info.Ertltree.defs
-    
+
 
 
 let check_outs_mov reg_friend reg_out reg_def interference_graph= 
   if reg_out <> reg_def && reg_out <> reg_friend then
-  add_interfs reg_out reg_def interference_graph
+    add_interfs reg_out reg_def interference_graph
 
 
 let handle_interferences_mov reg_friend live_info interference_graph = 
@@ -325,6 +335,14 @@ let construct_interference_graph live_info_map =
     1.3 LTL translation
 *)
 
+(**
+   Converts a binop to its LTL equivalent
+   @param colors the color map
+   @param binop given binop
+   @param reg1 first reg
+   @param reg2 second & destination reg
+   @param lb next label
+*)
 let ltl_i_binop colors binop reg1 reg2 lb = 
   let op1 = lookup colors reg1 in
   let op2 = lookup colors reg2 in
@@ -332,7 +350,7 @@ let ltl_i_binop colors binop reg1 reg2 lb =
   match binop with
   | Mmov when op1 = op2 -> Egoto lb
   | Mmov when not (col_is_hw colors op1)
-               && not (col_is_hw colors op2) ->
+           && not (col_is_hw colors op2) ->
     (* use one temp register *)
     let tmp_reg = Register.tmp1 in
     let mov2_lb = generate(Embinop (Mmov, Reg(tmp_reg), op2, lb)) in
@@ -344,13 +362,21 @@ let ltl_i_binop colors binop reg1 reg2 lb =
     let mult_lb = generate (Embinop (Mmul, op1, Reg(tmp_reg), last_move_lb)) in
     Embinop (Mmov, op2,  Reg(tmp_reg) , mult_lb)
   | _ when not (col_is_hw colors op1)
-            && not (col_is_hw colors op2) ->
+        && not (col_is_hw colors op2) ->
     let tmp_reg = Register.tmp1 in
     let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg) , op2 , lb)) in
     let binop_lb = generate (Embinop (binop, op1, Reg(tmp_reg), last_move_lb)) in
     Embinop (Mmov, op2 ,Reg(tmp_reg) , binop_lb)
   | _ -> Embinop (binop, op1, op2, lb)
 
+(**
+   Converts a 'load' to its LTL equivalent
+   @param colors the color map
+   @param src_preg src pseudo-register
+   @param srcOffset offset to src_preg
+   @param dest_preg dest pseudo-register
+   @param lb next label
+*)
 let ltl_i_load colors src_preg srcOffset dest_preg lb = 
   let dest_op = lookup colors dest_preg in
   let src_op = lookup colors src_preg in
@@ -374,6 +400,14 @@ let ltl_i_load colors src_preg srcOffset dest_preg lb =
   in 
   pre_instr
 
+(**
+   Converts a 'store' to its LTL equivalent
+   @param colors the color map
+   @param src_preg src pseudo-register
+   @param dest_preg dest pseudo-register
+   @param destOffset offset to dest_preg
+   @param lb next label
+*)
 let ltl_i_store colors src_preg dest_preg destOffset lb = 
   let dest_op = lookup colors dest_preg in
   let src_op = lookup colors src_preg in
@@ -397,6 +431,13 @@ let ltl_i_store colors src_preg dest_preg destOffset lb =
   in 
   pre_instr
 
+(**
+   Converts a ERTL instr to LTL
+   @param colors the color map
+   @param spilledNumber num of spilled registers
+   @param myinstr the instruction
+   @return the "not generated" first instruction of the translation
+*)
 let ltl_instr colors spilledNumber myinstr = match myinstr with 
   | Ertltree.Econst(n, reg, lb) -> Econst (n, lookup colors reg, lb)
   | Ertltree.Ereturn -> Ereturn
@@ -430,13 +471,21 @@ let ltl_instr colors spilledNumber myinstr = match myinstr with
     Embinop(Mmov, Reg(Register.rbp), Reg(Register.rsp), label)
   | Ertltree.Eget_param (n, reg, lb) -> let op = lookup colors reg in
     if not (col_is_hw colors op) then 
-    let tmp_reg = Register.tmp1 in
-    let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg), op, lb)) in
-    Embinop (Mmov, Spilled(n) , Reg(tmp_reg), last_move_lb)
+      let tmp_reg = Register.tmp1 in
+      let last_move_lb = generate (Embinop (Mmov, Reg(tmp_reg), op, lb)) in
+      Embinop (Mmov, Spilled(n) , Reg(tmp_reg), last_move_lb)
     else
-    Embinop(Mmov, Spilled(n), op , lb)
+      Embinop(Mmov, Spilled(n), op , lb)
   | _ -> raise (Error "instruction not supported")
 
+(**
+   Translate a ERTL instr.
+   Inserts in LTL tree, at same label, the first instruction of the LTL translation
+   The following are expected to be generated and properly "linked" by ltl_instr & co.
+   @param colors the color map
+   @param spilledNumber num of spilled registers
+   @param myinstr the instruction
+*)
 let ltl_treat_instr_label colors spilledNumber label instr = 
   let i = ltl_instr colors spilledNumber instr in
   graph := Label.M.add label i !graph

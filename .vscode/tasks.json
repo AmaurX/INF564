@@ -23,6 +23,13 @@
 			]
 		},
 		{
+			"label": "doc",
+			"type": "shell",
+			"command": "make doc",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
 			"label": "test",
 			"type": "shell",
 			"command": "make t_rtl",
