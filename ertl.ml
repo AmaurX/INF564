@@ -6,6 +6,7 @@ open Ertltree
 open Ops
 open Register
 open Format
+open Liveness
 exception Error of string
 
 (**
@@ -13,12 +14,8 @@ exception Error of string
   *)
 let graph = ref Label.M.empty
 
-(**
-  Map where all pseudo-registers lifespans are stored
-  *)
-let live_info_map = ref Label.M.empty
 
-type remaining_label_m = {mutable set : Label.set;}
+
 
 let generate instr =
   let l = Label.fresh () in
@@ -32,13 +29,13 @@ let generate instr =
 
   passes 6+th args with the stack frame
 
-  @pm dest_reg dest register
-  @pm fun_name function name
-  @pm rList the list of registers given as args
-  @pm l label of next instr after function call
+  @param dest_reg dest register
+  @param fun_name function name
+  @param rList the list of registers given as args
+  @param l label of next instr after function call
   *)
-let treat_ecall (dest_reg, fun_name, rList, lb) =  
-  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int(((List.length rList) - 6) * 8 )) , Register.rsp, l)) else lb
+let treat_ecall dest_reg fun_name rList lb =  
+  let lastLabel = if  List.length rList > 6 then generate (Emunop ( Maddi ( Int32.of_int(((List.length rList) - 6) * 8 )) , Register.rsp, lb)) else lb
   in
   let labelcopy = generate (Embinop(Mmov, Register.result, dest_reg, lastLabel)) in
   let usedRegs = if List.length rList <= 6 then List.length rList else 6  in
@@ -59,118 +56,64 @@ let treat_ecall (dest_reg, fun_name, rList, lb) =
   (* let firstlabel = if  List.length rList > 6 then generate (Emunop ( Maddi (Int32.of_int( - ((List.length rList) - 6) * 8 )) , Register.rsp, secondLabel)) else secondLabel in *)
   let goto = Egoto secondLabel in goto 
     
-
-let treat_div (binop, r1, r2, l) = 
+(**
+  Handles the binop div
+  The second register of the division must be %rax 
+  
+  @param r1 the first operand of the division
+  @param r2 the second operand of the division, and result register
+  @param l  label of next instr after the division
+*)
+let treat_div r1 r2 l = 
   let label1 = generate (Embinop (Mmov, Register.rax, r2 , l)) in
   let label2 = generate (Embinop (Mdiv, r1, Register.rax, label1)) in
   Embinop (Mmov ,r2, Register.rax, label2)
 
+(**
+  Translate instruction from the Rtltree to the Ertltree
 
+  Most instructions are straight forward
+
+  Only The division (Embinop (Mdiv, ...)) and Ecall get special treatments
+  See treat_div and treat_ecall.
+
+  @param instruction from the Rtltree
+*)
 let instr = function
   | Rtltree.Econst (n, r, l) -> Econst (n, r, l)
   | Rtltree.Eload (r1, n, r2, l) -> Eload (r1, n, r2, l)
   | Rtltree.Estore (r1, r2, n, l) -> Estore (r1, r2, n, l)
   | Rtltree.Emunop  (m, r, l) -> Emunop (m, r, l)
-  | Rtltree.Embinop (Mdiv, r1, r2, l) -> treat_div (Mdiv, r1, r2, l)
+  | Rtltree.Embinop (Mdiv, r1, r2, l) -> treat_div r1 r2 l
   | Rtltree.Embinop (m, r1, r2, l) -> Embinop (m, r1, r2, l)
-    (** attention au sens : [op r1 r2] représente [r2 <- r2 op r1] *)
   | Rtltree.Emubranch (m, r, l1, l2) -> Emubranch (m, r, l1, l2)
   | Rtltree.Embbranch (m, r1, r2, l1, l2) -> Embbranch (m, r1, r2, l1, l2)
-    (** attention au sens : [br r1 r2] représente [r2 br r1] *)
-  | Rtltree.Ecall (r, s, rlist, l) -> treat_ecall (r, s, rlist, l)
+  | Rtltree.Ecall (r, s, rlist, l) -> treat_ecall r s rlist l
   | Rtltree.Egoto (l) -> Egoto (l)
   | _ -> raise (Error "Wrong type of instruction")
 
+
+(**
+  As the function instr might have to add intermediary steps before or after an instruction
+  (in treat_div or treat_ecall), the function instr doesn't bind directly the label to the 
+  instruction, but returns the first instruction to be executed, which only then is binded 
+  to the corresponding label.
+
+  @param l label of the instruction to translate
+  @param i the instruction to translate
+*)  
 let treat_instr_label l i =
   let i = instr i in 
   graph := Label.M.add l i !graph
   
 
+(**
+  Launch the iteration to translate the body of a function
 
+  @param fun_body the body of the function to translate
+*)
 let ertl_body fun_body = Label.M.iter treat_instr_label fun_body
 
-
-
-
-
-let livenessHashtbl = Hashtbl.create 32
-
-let create_live_info mylabel myinstr = 
-  let successeurs = Ertltree.succ myinstr in
-  let defs, uses = Ertltree.def_use myinstr in
-  let my_live_info = {
-    instr = myinstr;
-    succ = successeurs;    (* successeurs *)
-    pred = Label.S.empty;       (* prédécesseurs *)
-    defs = Register.set_of_list defs;    (* définitions *)
-    uses = Register.set_of_list uses;    (* utilisations *)
-    ins = Register.S.empty;    (* variables vivantes en entrée *)
-    outs = Register.S.empty;    (* variables vivantes en sortie *)
-  } in
-  Hashtbl.add livenessHashtbl mylabel my_live_info
-
-let update_pred mylabel my_live_info =
-
-  let add_one_succ onesucc_lb = 
-    if Hashtbl.mem livenessHashtbl onesucc_lb then let one_succ = Hashtbl.find livenessHashtbl onesucc_lb in
-    one_succ.pred <- Label.S.add mylabel one_succ.pred
-    else  fprintf std_formatter "%a isn't in livenessHatbl @\n"  Label.print onesucc_lb;
-
-  in
-
-  if my_live_info.succ <> [] then List.iter add_one_succ my_live_info.succ
-
-
-let compute_outs live_info = 
-  let add_ins_of_succ label =
-    let this_succ = Hashtbl.find livenessHashtbl label in
-    live_info.outs <- Register.S.union live_info.outs this_succ.ins 
-  in
-  List.iter add_ins_of_succ live_info.succ
-
-let compute_ins live_info = 
-  let diff = Register.S.diff live_info.outs live_info.defs in 
-  live_info.ins <- Register.S.union live_info.uses diff
-
-  
-let kildall livenesstbl = 
-
-  let remaining_labels = {set = Label.S.empty} in
-  let fillSet label info = remaining_labels.set <- Label.S.add label remaining_labels.set
-  in  
-  Hashtbl.iter fillSet livenessHashtbl;
-  while (not (Label.S.is_empty remaining_labels.set))
-  do 
-    let mylabel = Label.S.min_elt remaining_labels.set in
-    remaining_labels.set <- Label.S.remove mylabel remaining_labels.set;
-    let my_live_info = Hashtbl.find livenessHashtbl mylabel in
-    let old_ins = my_live_info.ins in
-    compute_outs (my_live_info);
-    compute_ins (my_live_info);
-    (* Maybe put my_live_info back into the hashtable i dont know... *)
-    if not (Register.S.equal old_ins my_live_info.ins) 
-    then remaining_labels.set <- Label.S.union my_live_info.pred remaining_labels.set;
-  done
-
-
-
-let fill_the_map label my_live_info = 
-  live_info_map := Label.M.add label my_live_info !live_info_map 
-
-
-let liveness instrMap = 
-  (* Hashtbl.clear livenessHashtbl; *)
-  Label.M.iter create_live_info instrMap;
-
-  Hashtbl.iter update_pred livenessHashtbl;
-
-  kildall livenessHashtbl;
-
-  Hashtbl.iter fill_the_map livenessHashtbl;
-
-  !live_info_map
-
-  
 (**
   RTL => ERTL fun translation
   explicitly saves callee-saved registers
@@ -213,7 +156,6 @@ let ertl_fun fn =
   (*Fin de l'entrée de la fonction*)
 
   (*Debut de la sortie de fonction*)
-  (* graph := Label.M.add fn.Rtltree.fun_exit Ereturn !graph; *)
   let return_lb = generate(Ereturn)  in
   let delete_frame_lb = generate(Edelete_frame return_lb) 
   in 
@@ -228,16 +170,27 @@ let ertl_fun fn =
   (*Fin de la sortie de fonction*)
   {
   fun_name = fn.Rtltree.fun_name;
-  fun_formals = List.length fn.Rtltree.fun_formals; (* nb total d'arguments *)
-  fun_locals = fn.Rtltree.fun_locals;
+  fun_formals = List.length fn.Rtltree.fun_formals;
+  fun_locals = fn.Rtltree.fun_locals; (*No real use in the following steps, only in the interprets*)
   fun_entry = alloc_lb;
   fun_body = !graph;
   }
 
+(**
+  Recursily handle all functions from the Rtltree
+
+  @param fun_list List of all the functions
+*)
 let rec ertl_funlist = function
 | fn::remain -> ertl_fun fn :: ertl_funlist remain
 | [] -> []
 
+(**
+  Main function of the class
+
+  Calls ertl_funlist to translate the tree
+  Then calls liveness on the graph
+*)
 let program p = 
 let funlist = ertl_funlist p.Rtltree.funs in 
 let livenessMap = liveness !graph in
