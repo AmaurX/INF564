@@ -90,7 +90,7 @@ let instr = function
   | Rtltree.Embbranch (m, r1, r2, l1, l2) -> Embbranch (m, r1, r2, l1, l2)
   | Rtltree.Ecall (r, s, rlist, l) -> treat_ecall r s rlist l
   | Rtltree.Egoto (l) -> Egoto (l)
-  | _ -> raise (Error "Wrong type of instruction")
+  (* | _ -> raise (Error "Wrong type of instruction") *)
 
 
 (**

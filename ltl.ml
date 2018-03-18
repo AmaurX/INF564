@@ -4,9 +4,12 @@ open Ltltree
 open Ops
 open Register
 open Format
+open Coloring
+open Interference
 exception Error of string
 
-type color_graph_m = {mutable map : Ltltree.arcs Register.map;}
+
+
 type color = Ltltree.operand
 type coloring = color Register.map
 
@@ -56,279 +59,9 @@ let print_color_graph cm =
     This part is coloring the graph    
 *)
 
-type todo_set_m = {mutable set : Register.set}
-
-let find_best_coloring_preference_four todo potential_colors_map interference_graph =
-  let is_of_preference_four register potential_colors = 
-    if Register.S.is_empty potential_colors then false 
-    else true 
-
-  in
-
-  let filtered_potential_colors_map = Register.M.filter is_of_preference_four potential_colors_map in
-
-  if not (Register.M.is_empty filtered_potential_colors_map) 
-  then 
-    begin
-      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
-      (true, register_to_color, Register.S.choose potential_colors)
-    end
-  else
-    begin
-      (false, Register.fresh(), Register.fresh())
-    end
-
-
-let find_best_coloring_preference_three todo potential_colors_map interference_graph = 
-  let is_of_preference_three register potential_colors = 
-    if Register.S.is_empty potential_colors then begin false end 
-    else
-      begin
-        let arcs_of_reg = Register.M.find register interference_graph in
-        let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
-        if Register.S.is_empty preference_inter_potential then begin false end 
-        else begin true end
-      end 
-
-  in
-
-  let filtered_potential_colors_map = Register.M.filter is_of_preference_three potential_colors_map in
-
-  if not (Register.M.is_empty filtered_potential_colors_map) 
-  then 
-    begin
-      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
-      let arcs_of_reg = Register.M.find register_to_color interference_graph in
-      let preference_inter_potential = Register.S.inter arcs_of_reg.prefs potential_colors in
-      (true, register_to_color, Register.S.choose preference_inter_potential)
-    end
-  else
-    begin
-      find_best_coloring_preference_four todo potential_colors_map interference_graph
-    end
-
-
-let find_best_coloring_preference_two todo potential_colors_map interference_graph = 
-  let is_of_preference_two register potential_colors = 
-    if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then  false 
-    else true
-  in
-
-  let filtered_potential_colors_map = Register.M.filter is_of_preference_two potential_colors_map in
-
-  if not (Register.M.is_empty filtered_potential_colors_map) 
-  then 
-    begin
-      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
-      (true, register_to_color, Register.S.choose potential_colors)
-    end
-  else
-    begin
-      find_best_coloring_preference_three todo potential_colors_map interference_graph
-    end
-
-
-let find_best_coloring_preference_one todo potential_colors_map interference_graph =
-  let filter_to_do register potential_colors = 
-    if Register.S.mem register todo then true else false
-  in
-  let potential_colors_map_todo = Register.M.filter filter_to_do potential_colors_map in
-
-  let is_of_preference_one register potential_colors = 
-    if Register.S.is_empty potential_colors || (Register.S.cardinal potential_colors) > 1 then begin false end
-    else 
-      begin
-        let only_potential_color = Register.S.choose potential_colors in
-        let arcs_of_reg = Register.M.find register interference_graph in
-        if Register.S.mem only_potential_color arcs_of_reg.prefs then begin true end
-        else begin false end
-      end 
-  in
-
-  let filtered_potential_colors_map = Register.M.filter is_of_preference_one potential_colors_map_todo in
-
-  if not (Register.M.is_empty filtered_potential_colors_map) 
-  then 
-    begin
-      let (register_to_color, potential_colors)= Register.M.choose filtered_potential_colors_map in
-      (true, register_to_color, Register.S.choose potential_colors)
-    end
-  else
-    begin
-      find_best_coloring_preference_two todo potential_colors_map_todo interference_graph
-    end
-
-
-let remove_color potential_colors_map colored_register chosen_color interference_graph = 
-
-  let arcs_from_register = Register.M.find colored_register interference_graph in
-  let rec remove_color_rec interfered_registers potential_colors_map =
-    if not (Register.S.is_empty interfered_registers) 
-    then
-      begin
-        let reg = Register.S.choose interfered_registers in
-        if not (Register.S.mem reg Register.allocatable) 
-        then 
-          begin
-            (* fprintf std_formatter "hi! with reg %a  @\n" Register.print reg; *)
-            let new_interfered_registers = Register.S.remove reg interfered_registers in
-            let old_potential_colors = Register.M.find reg potential_colors_map in
-            let new_potential_colors = Register.S.remove chosen_color old_potential_colors in 
-            let new_potential_colors_map = Register.M.add  reg new_potential_colors potential_colors_map in
-            remove_color_rec new_interfered_registers new_potential_colors_map
-          end
-        else
-          begin
-            let new_interfered_registers = Register.S.remove reg interfered_registers in
-            remove_color_rec new_interfered_registers potential_colors_map
-          end
-      end
-    else
-      begin
-        potential_colors_map
-      end
-  in
-  remove_color_rec arcs_from_register.intfs potential_colors_map
-
-let change_pref interference_graph register_to_color new_color = 
-  let iter register arcs =
-    if Register.S.mem register_to_color arcs.prefs then 
-      arcs.prefs <- Register.S.add new_color (Register.S.remove register_to_color arcs.prefs) 
-  in
-  Register.M.iter iter interference_graph; interference_graph
-
-let rec color_one interference_graph todo potential_colors_map color_map number_of_spill =
-  if not (Register.S.is_empty todo) then 
-    begin
-      let (coloring_is_possible, register_to_color , new_color) = find_best_coloring_preference_one todo potential_colors_map interference_graph in
-      if coloring_is_possible then
-        begin
-          (* fprintf std_formatter "Hello @\n"; *)
-          (* fprintf std_formatter "Lets color %a with color %a @\n" Register.print register_to_color Register.print new_color; *)
-          let new_color_map = Register.M.add register_to_color (Ltltree.Reg new_color) color_map in
-          let new_interference_graph = change_pref interference_graph register_to_color new_color in
-          let new_todo = Register.S.remove register_to_color todo in
-          (* let new_potential_colors_map_1 = Register.M.remove register_to_color potential_colors_map in *)
-          let new_potential_colors_map = remove_color potential_colors_map register_to_color new_color new_interference_graph in
-          color_one new_interference_graph new_todo new_potential_colors_map new_color_map number_of_spill
-        end
-      else 
-        begin
-          (* fprintf std_formatter "Coucou @\n"; *)
-          let register_to_spill = Register.S.choose todo in
-          let new_color_map = Register.M.add register_to_spill (Ltltree.Spilled (- 8 - number_of_spill * 8)) color_map in
-          let new_todo = Register.S.remove register_to_spill todo in
-          color_one interference_graph new_todo potential_colors_map new_color_map (number_of_spill + 1)
-        end
-    end
-  else
-    begin
-      (color_map, number_of_spill)
-    end
-
-type potential_colors_map_m = {mutable reg_map : Register.set Register.map}
-
-let color interference_graph = 
-  let todo = {set = Register.S.empty} in
-  let fill_todo register arcs =
-    if not (Register.S.mem register Register.allocatable) then
-      todo.set <- Register.S.add register todo.set
-  in
-  Register.M.iter fill_todo interference_graph;
-  let potential_colors_map = {reg_map= Register.M.empty} 
-  in
-  let fill_potential_colors_map register arcs = 
-    let potential_colors = Register.S.diff Register.allocatable arcs.intfs
-    in potential_colors_map.reg_map <- Register.M.add register potential_colors potential_colors_map.reg_map 
-  in
-  Register.M.iter fill_potential_colors_map interference_graph;
-  let empty_color_map = Register.M.empty in
-  let zero = 0 in
-  color_one interference_graph todo.set potential_colors_map.reg_map empty_color_map zero
 
 
 
-
-(**
-    This part is creating the graph    
-*)
-let add_friends reg1 reg2 interference_graph =
-  if Register.M.mem reg1 interference_graph.map 
-  then let arcR1 = Register.M.find reg1 interference_graph.map in
-    arcR1.prefs <- Register.S.add reg2 arcR1.prefs;
-  else let prefs = Register.S.singleton reg2 in
-    let newarcR1 = {prefs = prefs; intfs = Register.S.empty} in
-    interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map;
-
-    if Register.M.mem reg2 interference_graph.map 
-    then let arcR2 = Register.M.find reg2 interference_graph.map in
-      arcR2.prefs <- Register.S.add reg1 arcR2.prefs;
-    else let prefs = Register.S.singleton reg1 in
-      let newarcR2 = {prefs = prefs; intfs = Register.S.empty} in
-      interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
-
-
-let iter_pref label live_info interference_graph = 
-  match live_info.Ertltree.instr with
-  | Ertltree.Embinop (Mmov, reg1, reg2, l ) -> if reg1 <> reg2 then add_friends reg1 reg2 interference_graph 
-  | _ -> ()
-
-let add_interfs reg1 reg2 interference_graph =
-  (* fprintf std_formatter "add interf %a %a @\n" Register.print reg1 Register.print reg2; *)
-  if Register.M.mem reg1 interference_graph.map 
-  then begin let arcR1 = Register.M.find reg1 interference_graph.map in
-    arcR1.intfs <- Register.S.add reg2 arcR1.intfs;
-    if Register.S.mem reg2 arcR1.prefs then arcR1.prefs <- Register.S.remove reg2 arcR1.prefs
-  end
-  else begin let intfs = Register.S.singleton reg2 in
-    let newarcR1 = {prefs = Register.S.empty; intfs = intfs} in
-    interference_graph.map <- Register.M.add reg1 newarcR1 interference_graph.map
-  end ;
-
-  if Register.M.mem reg2 interference_graph.map 
-  then begin let arcR2 = Register.M.find reg2 interference_graph.map in
-    arcR2.intfs <- Register.S.add reg1 arcR2.intfs;
-    if Register.S.mem reg1 arcR2.prefs then arcR2.prefs <- Register.S.remove reg1 arcR2.prefs
-  end
-  else begin let intfs = Register.S.singleton reg1 in
-    let newarcR2 = {prefs = Register.S.empty; intfs = intfs} in
-    interference_graph.map <- Register.M.add reg2 newarcR2 interference_graph.map
-  end
-
-let check_outs reg_out reg_def interference_graph= 
-  if reg_out <> reg_def then
-    add_interfs reg_out reg_def interference_graph
-
-
-let handle_interferences live_info interference_graph =
-  if not (Register.S.is_empty live_info.Ertltree.defs) then
-    Register.S.iter (fun reg_def -> Register.S.iter (fun reg_out -> check_outs reg_out reg_def interference_graph) live_info.Ertltree.outs) live_info.Ertltree.defs
-
-
-
-let check_outs_mov reg_friend reg_out reg_def interference_graph= 
-  if reg_out <> reg_def && reg_out <> reg_friend then
-    add_interfs reg_out reg_def interference_graph
-
-
-let handle_interferences_mov reg_friend live_info interference_graph = 
-  if not (Register.S.is_empty live_info.Ertltree.defs) then
-    Register.S.iter (fun reg_out -> check_outs_mov reg_friend reg_out (Register.S.choose live_info.Ertltree.defs) interference_graph) live_info.Ertltree.outs
-
-
-let iter_intfs label live_info interference_graph = 
-  match live_info.Ertltree.instr with
-  | Ertltree.Embinop (Mmov, reg1, reg2, l ) -> if reg1 <> reg2 then handle_interferences_mov reg1 live_info interference_graph 
-  | _ -> handle_interferences live_info interference_graph
-
-
-
-
-let construct_interference_graph live_info_map =
-  let interference_graph = {map = Register.M.empty} in
-  Label.M.iter (fun label live_info -> iter_pref label live_info interference_graph) live_info_map;
-  Label.M.iter (fun label live_info -> iter_intfs label live_info interference_graph) live_info_map;
-  interference_graph.map 
 
 
 (* ================================================
@@ -476,7 +209,7 @@ let ltl_instr colors spilledNumber myinstr = match myinstr with
       Embinop (Mmov, Spilled(n) , Reg(tmp_reg), last_move_lb)
     else
       Embinop(Mmov, Spilled(n), op , lb)
-  | _ -> raise (Error "instruction not supported")
+  (* | _ -> raise (Error "instruction not supported") *)
 
 (**
    Translate a ERTL instr.

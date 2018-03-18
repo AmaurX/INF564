@@ -13,6 +13,9 @@ type label = Label.t
 type arcs = {mutable prefs: Register.set; mutable intfs: Register.set }
 type igraph = arcs Register.map
 
+type interference_graph_m = {mutable map : arcs Register.map;}
+type potential_colors_map_m = {mutable reg_map : Register.set Register.map}
+
 (** une opérande est un registre physique (Reg) ou un emplacement
     de pile (Spilled) *)
 type operand =
