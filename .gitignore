@@ -22,3 +22,5 @@ main.d.byte
 
 #settings
 .vscode
+tests/a.out
+

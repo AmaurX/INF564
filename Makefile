@@ -16,7 +16,7 @@ main.native: *.ml*
 main.d.byte: *.ml*
 	ocamlbuild $@
 
-mini-c: 
+mini-c: main.native
 	ln -sf main.native $@
 
 doc: *.ml* cleandoc
