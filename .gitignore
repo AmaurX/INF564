@@ -5,6 +5,7 @@ _build/
 # Untracked files :
 test.c
 tests/out
+*.s
 
 # Executables
 main.native
