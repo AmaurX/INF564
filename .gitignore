@@ -1,16 +1,19 @@
-# .vscode
+
 
 _build/
 
 # Untracked files :
 test.c
 tests/out
+tests/a.out
+tests/test.s
 *.s
 
 # Executables
 main.native
 main.d.byte
 mini-c
+test
 
 # documentation
 main.docdir
@@ -18,4 +21,4 @@ doc
 main.d.byte
 
 #settings
-.vscode/settings.json
+.vscode

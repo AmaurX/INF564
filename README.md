@@ -12,7 +12,15 @@ In addition to compiling correctly, the compiler has the following *incredible* 
 - sums & substractions with constant terms are translated to `add $$, reg`, `incq` or `decq`
 - sums, substractions, mutiplications & divisions(except by 0) involving 2 constants terms are computed at compilation time instead ot run time.
 
+## Tests 
 
+The Makefile provides rules for all intermediate and final tests. For example:
+```sh
+# Tests the whole compilation chain
+make t_final
+```
+
+It is also possible to provide a `test.c` and run `make`.
 
 ## Documentation 
 
