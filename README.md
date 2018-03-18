@@ -1,10 +1,13 @@
 # Mini-C compiler
+3/2018
+Amaury Camus
+Grégoire Roussel
 
 ## Description
 
 This is the main project of the **INF564 - Compilation** course.
 
-The objective is to design a compiler for `mini-c`, a small but functional subset ofC.
+The objective is to design a compiler for `mini-c`, a small but functional subset of C.
 
 ## Special features
 
@@ -24,5 +27,5 @@ It is also possible to provide a `test.c` and run `make`.
 
 ## Documentation 
 
-`make doc` creates the documentation of the project, which will accessible in `doc/html/index.html`.
+`make doc` creates the documentation of the project, which will accessible in `doc/index.html`.
 
